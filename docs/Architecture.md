@@ -347,6 +347,8 @@ class DebateTranscript:
 
 ## CLI Interface
 
+> **Shorthand:** `qai` is a built-in alias. Both `qai` and `questionable-ai` work identically.
+
 ```
 questionable-ai
   ask         Submit a query to the panel for debate
