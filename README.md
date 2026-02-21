@@ -1,6 +1,12 @@
 # Questionable AI (qAI)
 
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+
 Cross-vendor multi-model debate and consensus engine for AI response distillation.
+
+**Phase 1 complete** — working CLI with cross-vendor debate + reflection rounds. First live 4-vendor debate: 41k tokens across Claude, GPT, Gemini, and Grok.
 
 Sends a user query to multiple AI models simultaneously, shares competing responses back to each model for reflection and critique, then synthesizes a final answer through a user-selected model.
 
@@ -34,7 +40,7 @@ questionable-ai ask "Your query here" --panel claude,gpt,gemini
 
 ## Status
 
-**Phase 1: Foundation** — In progress. See [Roadmap](docs/Roadmap.md) for the full plan.
+**Phase 1: Foundation** — Complete. Phase 1.5 (provider abstraction for direct vendor APIs) in progress. See [Roadmap](docs/Roadmap.md) for the full plan.
 
 ## Research Platform
 

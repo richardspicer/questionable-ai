@@ -2,6 +2,17 @@
 
 Questionable AI is an early-stage research tool. Contributions are welcome — whether that's new model integrations, debate topologies, bug fixes, or documentation improvements.
 
+## Quick Start
+
+```bash
+git clone https://github.com/richardspicer/questionable-ai.git
+cd questionable-ai
+uv sync
+pre-commit install
+export OPENROUTER_API_KEY="sk-or-..."   # or set in ~/.questionable-ai/config.toml
+uv run questionable-ai ask "test query" --verbose
+```
+
 ## How to Contribute
 
 1. **Open an issue first** to discuss your idea before writing code
