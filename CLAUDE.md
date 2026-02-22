@@ -140,7 +140,7 @@ After changes, smoke test: `questionable-ai --help`
 - Do not spin on the same failure
 
 ### Boundaries
-- Do not create PRs or install tools. Push the branch and stop. The developer creates PRs manually.
+- Do not create PRs. Push the branch and stop. The developer creates PRs manually.
 - Do not attempt to install CLI tools (gh, hub, etc.)
 
 ## Session Discipline
