@@ -75,7 +75,7 @@ CMD shell corrupts `git commit -m "message with spaces"`. Always use:
 ```
 echo "feat: description here" > .commitmsg
 git commit -F .commitmsg
-del .commitmsg
+rm .commitmsg
 ```
 
 ## Pre-commit Hooks
