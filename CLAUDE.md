@@ -120,6 +120,25 @@ qai ask "Your query here"    # short alias
 
 After changes, smoke test: `questionable-ai --help`
 
+## Claude Code Guardrails
+
+### Verification Scope
+- Run only the tests for new/changed code, not the full suite
+- Smoke test the CLI after changes
+- Full suite verification is the developer's responsibility before merging
+
+### Timeout Policy
+- If any test run exceeds 60 seconds, stop and identify the stuck test
+- Do not set longer timeouts and wait — diagnose instead
+
+### Process Hygiene
+- Before running tests, kill any orphaned python/node processes from previous runs
+- After killing a stuck process, clean up zombies before retrying
+
+### Failure Mode
+- If verification hits a problem you can't resolve in 2 attempts, commit the work to the branch and report what failed
+- Do not spin on the same failure
+
 ## Session Discipline
 
 - **Architecture.md:** Update at end of session if new modules, endpoints, or data models were introduced

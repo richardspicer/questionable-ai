@@ -208,3 +208,6 @@ __marimo__/
 
 # Temp commit message file
 .commitmsg
+
+# Claude Code
+.claude/
