@@ -139,6 +139,10 @@ After changes, smoke test: `questionable-ai --help`
 - If verification hits a problem you can't resolve in 2 attempts, commit the work to the branch and report what failed
 - Do not spin on the same failure
 
+### Boundaries
+- Do not create PRs or install tools. Push the branch and stop. The developer creates PRs manually.
+- Do not attempt to install CLI tools (gh, hub, etc.)
+
 ## Session Discipline
 
 - **Architecture.md:** Update at end of session if new modules, endpoints, or data models were introduced
