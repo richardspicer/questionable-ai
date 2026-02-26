@@ -1,1 +1,1 @@
-"""Tests for Questionable AI."""
+"""Tests for Mutual Dissent."""

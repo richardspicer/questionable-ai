@@ -7,7 +7,7 @@ tracks response latency and token usage.
 Typical usage::
 
     import asyncio
-    from questionable_ai.client import OpenRouterClient
+    from mutual_dissent.client import OpenRouterClient
 
     async def main():
         async with OpenRouterClient(api_key="sk-or-...") as client:
@@ -24,12 +24,12 @@ from typing import Any
 
 import httpx
 
-from questionable_ai.models import ModelResponse
+from mutual_dissent.models import ModelResponse
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_TIMEOUT = 120.0  # seconds — generous for slow models
 APP_SITE_URL = "https://richardspicer.io"
-APP_NAME = "Questionable AI"
+APP_NAME = "Mutual Dissent"
 
 
 class OpenRouterError(Exception):
@@ -67,7 +67,7 @@ class OpenRouterClient:
         if not api_key:
             raise ValueError(
                 "OpenRouter API key is required. Set OPENROUTER_API_KEY env var "
-                "or add api_key to ~/.questionable-ai/config.toml"
+                "or add api_key to ~/.mutual-dissent/config.toml"
             )
         self._api_key = api_key
         self._timeout = timeout

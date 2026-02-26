@@ -1,4 +1,4 @@
-# Questionable AI (qAI)
+# Mutual Dissent
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -24,21 +24,21 @@ Single-vendor multi-agent systems (Grok's 4-agent debate, Anthropic's agent team
 ## Installation
 
 ```bash
-git clone https://github.com/richardspicer/questionable-ai.git
-cd questionable-ai
+git clone https://github.com/richardspicer/mutual-dissent.git
+cd mutual-dissent
 uv sync
 ```
 
 ## Usage
 
 ```bash
-qai ask "Your query here"
-qai ask "Your query here" --synthesizer claude
-qai ask "Your query here" --rounds 2
-qai ask "Your query here" --panel claude,gpt,gemini
+dissent ask "Your query here"
+dissent ask "Your query here" --synthesizer claude
+dissent ask "Your query here" --rounds 2
+dissent ask "Your query here" --panel claude,gpt,gemini
 ```
 
-`questionable-ai` also works as the full command name.
+`mutual-dissent` also works as the full command name.
 
 ## Status
 

@@ -5,7 +5,7 @@ responses, progress indicators, and structured synthesis output.
 
 Typical usage::
 
-    from questionable_ai.display import render_debate
+    from mutual_dissent.display import render_debate
 
     render_debate(transcript, verbose=True)
 """
@@ -17,7 +17,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-from questionable_ai.models import DebateTranscript, ModelResponse
+from mutual_dissent.models import DebateTranscript, ModelResponse
 
 console = Console()
 

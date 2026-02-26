@@ -1,12 +1,12 @@
 """Data models for debate transcripts and API responses.
 
-Defines the core data structures used throughout qAI for representing
+Defines the core data structures used throughout Mutual Dissent for representing
 model responses, debate rounds, and complete debate transcripts. All models
 are serializable to JSON for transcript logging.
 
 Typical usage::
 
-    from questionable_ai.models import DebateTranscript, ModelResponse
+    from mutual_dissent.models import DebateTranscript, ModelResponse
 
     response = ModelResponse(
         model_id="anthropic/claude-sonnet-4.5",

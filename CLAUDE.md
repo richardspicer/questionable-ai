@@ -1,4 +1,4 @@
-# Questionable AI (qAI)
+# Mutual Dissent
 
 Cross-vendor multi-model debate and consensus engine. Sends queries to multiple AI models simultaneously, runs reflection rounds where each model critiques the others, then synthesizes a final answer.
 
@@ -7,7 +7,7 @@ Part of richardspicer.io research portfolio. Research angle: cross-vendor disagr
 ## Project Layout
 
 ```
-src/questionable_ai/
+src/mutual_dissent/
 ├── cli.py              # Click CLI (ask command with --panel, --synthesizer, --rounds)
 ├── orchestrator.py     # Core pipeline: fan-out → reflect → synthesize
 ├── client.py           # OpenRouter API client (async httpx)
@@ -106,19 +106,19 @@ Requires `OPENROUTER_API_KEY` environment variable. Set in PowerShell profile or
 - OpenRouter provides unified API across Claude, GPT, Gemini, Grok — no vendor-specific clients
 - Reflection prompts include all other models' responses for that round
 - Synthesis prompt includes formatted transcript of entire debate history
-- CLI aliases: `qai` and `questionable-ai` both work
+- CLI aliases: `mutual-dissent` and `dissent` both work
 
 ## CLI Usage
 
 ```powershell
-questionable-ai ask "Your query here"
-questionable-ai ask "Your query here" --synthesizer claude
-questionable-ai ask "Your query here" --rounds 2
-questionable-ai ask "Your query here" --panel claude,gpt,gemini
-qai ask "Your query here"    # short alias
+mutual-dissent ask "Your query here"
+mutual-dissent ask "Your query here" --synthesizer claude
+mutual-dissent ask "Your query here" --rounds 2
+mutual-dissent ask "Your query here" --panel claude,gpt,gemini
+dissent ask "Your query here"    # short alias
 ```
 
-After changes, smoke test: `questionable-ai --help`
+After changes, smoke test: `mutual-dissent --help`
 
 ## Claude Code Guardrails
 
@@ -151,6 +151,6 @@ After changes, smoke test: `questionable-ai --help`
 ```powershell
 ruff check .
 ruff format --check .
-mypy src/questionable_ai/
+mypy src/mutual_dissent/
 pre-commit run --all-files
 ```

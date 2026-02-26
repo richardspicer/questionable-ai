@@ -1,4 +1,4 @@
-# Pre-commit hooks for Questionable AI
+# Pre-commit hooks for Mutual Dissent
 # Install: pre-commit install
 # Run all: pre-commit run --all-files
 # Update: pre-commit autoupdate
@@ -37,6 +37,6 @@ repos:
     rev: v1.19.1
     hooks:
       - id: mypy
-        args: ['--config-file=pyproject.toml', 'src/questionable_ai/']
+        args: ['--config-file=pyproject.toml', 'src/mutual_dissent/']
         pass_filenames: false
-        files: ^src/questionable_ai/
+        files: ^src/mutual_dissent/

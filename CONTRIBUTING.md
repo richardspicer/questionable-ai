@@ -1,16 +1,16 @@
-# Contributing to Questionable AI
+# Contributing to Mutual Dissent
 
-Questionable AI is an early-stage research tool. Contributions are welcome — whether that's new model integrations, debate topologies, bug fixes, or documentation improvements.
+Mutual Dissent is an early-stage research tool. Contributions are welcome — whether that's new model integrations, debate topologies, bug fixes, or documentation improvements.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/richardspicer/questionable-ai.git
-cd questionable-ai
+git clone https://github.com/richardspicer/mutual-dissent.git
+cd mutual-dissent
 uv sync
 pre-commit install
-export OPENROUTER_API_KEY="sk-or-..."   # or set in ~/.questionable-ai/config.toml
-uv run questionable-ai ask "test query" --verbose
+export OPENROUTER_API_KEY="sk-or-..."   # or set in ~/.mutual-dissent/config.toml
+uv run mutual-dissent ask "test query" --verbose
 ```
 
 ## How to Contribute
@@ -24,8 +24,8 @@ uv run questionable-ai ask "test query" --verbose
 
 ```powershell
 # Clone and setup
-git clone https://github.com/richardspicer/questionable-ai.git
-cd questionable-ai
+git clone https://github.com/richardspicer/mutual-dissent.git
+cd mutual-dissent
 
 # Install dependencies (creates .venv automatically)
 uv sync
@@ -38,7 +38,7 @@ uv sync
 pre-commit install
 
 # Verify
-questionable-ai --help
+mutual-dissent --help
 ```
 
 ## Dev Tooling
@@ -59,7 +59,7 @@ If a hook fails, the commit is blocked. Auto-fixable issues (whitespace, import 
 ruff check .                    # Lint
 ruff format --check .           # Format check (dry run)
 ruff format .                   # Format (apply)
-mypy src/questionable_ai/       # Type check
+mypy src/mutual_dissent/        # Type check
 pre-commit run --all-files      # Run all hooks against entire repo
 ```
 
@@ -69,7 +69,7 @@ pre-commit run --all-files      # Run all hooks against entire repo
 - **Type annotations:** All new public functions should have type hints. Mypy checks function bodies even without annotations, but annotated code is preferred.
 - **Formatting:** Handled by ruff. Line length is 100 characters.
 - **Commits:** One logical change per commit, descriptive messages
-- **Testing:** Verify the CLI still works after changes: `questionable-ai --help`
+- **Testing:** Verify the CLI still works after changes: `mutual-dissent --help`
 
 ## Git Workflow
 
