@@ -8,11 +8,27 @@ version = "0.1.0"
 description = "Cross-vendor multi-model debate and consensus engine for AI response distillation"
 requires-python = ">=3.14"
 license = "MIT"
+readme = "README.md"
+authors = [
+    {name = "Richard Spicer", email = "richard@richardspicer.io"},
+]
+keywords = ["ai", "llm", "debate", "multi-model", "consensus"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "httpx",
     "click",
     "rich",
 ]
+
+[project.urls]
+Homepage = "https://github.com/richardspicer/mutual-dissent"
+Repository = "https://github.com/richardspicer/mutual-dissent"
+Issues = "https://github.com/richardspicer/mutual-dissent/issues"
 
 [project.scripts]
 mutual-dissent = "mutual_dissent.cli:main"
