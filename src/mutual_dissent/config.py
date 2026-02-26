@@ -1,12 +1,12 @@
-"""Configuration management for Questionable AI.
+"""Configuration management for Mutual Dissent.
 
 Handles API key resolution, model alias mapping, and user-configurable defaults.
-Configuration is loaded from TOML file (~/.questionable-ai/config.toml) with
+Configuration is loaded from TOML file (~/.mutual-dissent/config.toml) with
 environment variable overrides.
 
 Typical usage::
 
-    from questionable_ai.config import load_config
+    from mutual_dissent.config import load_config
 
     config = load_config()
     api_key = config.api_key
@@ -20,7 +20,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-APP_DIR = Path.home() / ".questionable-ai"
+APP_DIR = Path.home() / ".mutual-dissent"
 CONFIG_PATH = APP_DIR / "config.toml"
 TRANSCRIPT_DIR = APP_DIR / "transcripts"
 
@@ -108,6 +108,13 @@ def load_config() -> Config:
     Returns:
         Populated Config instance.
     """
+    # One-time migration from old config path.
+    old_app_dir = Path.home() / ".questionable-ai"
+    if old_app_dir.exists() and not APP_DIR.exists():
+        import shutil
+
+        shutil.copytree(old_app_dir, APP_DIR)
+
     config = Config()
 
     # Load TOML config if it exists.

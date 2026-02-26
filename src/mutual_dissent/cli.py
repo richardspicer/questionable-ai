@@ -1,12 +1,12 @@
-"""CLI entry point for Questionable AI.
+"""CLI entry point for Mutual Dissent.
 
-Provides the ``questionable-ai`` command with subcommands for running
+Provides the ``mutual-dissent`` command with subcommands for running
 multi-model debates, replaying transcripts, and managing configuration.
 
 Typical usage::
 
-    questionable-ai ask "What is MCP security?"
-    questionable-ai ask "Compare REST vs GraphQL" --verbose --rounds 2
+    mutual-dissent ask "What is MCP security?"
+    mutual-dissent ask "Compare REST vs GraphQL" --verbose --rounds 2
 """
 
 from __future__ import annotations
@@ -18,17 +18,17 @@ import sys
 import click
 from rich.console import Console
 
-from questionable_ai import __version__
-from questionable_ai.config import load_config
-from questionable_ai.display import render_debate
-from questionable_ai.orchestrator import run_debate
-from questionable_ai.transcript import save_transcript
+from mutual_dissent import __version__
+from mutual_dissent.config import load_config
+from mutual_dissent.display import render_debate
+from mutual_dissent.orchestrator import run_debate
+from mutual_dissent.transcript import save_transcript
 
 console = Console(stderr=True)
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="questionable-ai")
+@click.version_option(version=__version__, prog_name="mutual-dissent")
 def main() -> None:
     """Cross-vendor multi-model debate and consensus engine.
 
@@ -104,7 +104,7 @@ def ask(
         console.print(
             "[red bold]Error:[/red bold] No API key found.\n"
             "Set OPENROUTER_API_KEY environment variable or add "
-            "api_key to ~/.questionable-ai/config.toml"
+            "api_key to ~/.mutual-dissent/config.toml"
         )
         sys.exit(1)
 

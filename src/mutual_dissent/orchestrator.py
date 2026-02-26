@@ -8,8 +8,8 @@ parallel.
 Typical usage::
 
     import asyncio
-    from questionable_ai.config import load_config
-    from questionable_ai.orchestrator import run_debate
+    from mutual_dissent.config import load_config
+    from mutual_dissent.orchestrator import run_debate
 
     config = load_config()
     transcript = asyncio.run(run_debate("What is MCP?", config))
@@ -17,11 +17,11 @@ Typical usage::
 
 from __future__ import annotations
 
-from questionable_ai import __version__
-from questionable_ai.client import OpenRouterClient
-from questionable_ai.config import Config
-from questionable_ai.models import DebateRound, DebateTranscript, ModelResponse
-from questionable_ai.prompts import (
+from mutual_dissent import __version__
+from mutual_dissent.client import OpenRouterClient
+from mutual_dissent.config import Config
+from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
+from mutual_dissent.prompts import (
     RoundSummary,
     format_initial,
     format_reflection,

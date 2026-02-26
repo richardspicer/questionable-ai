@@ -1,4 +1,4 @@
-# Questionable AI (qAI) — Roadmap
+# Mutual Dissent — Roadmap
 
 ## Problem Statement
 
@@ -6,7 +6,7 @@ AI models have different training data, architectures, and reasoning biases. Rel
 
 Every existing multi-model tool either operates within a single vendor's ecosystem (Grok 4.20's 4-agent system, Anthropic's agent teams) or does cross-vendor comparison without a reflection loop (LLM Council, PolyCouncil). Nobody builds the full cycle: fan-out → reflection → refinement → synthesis across different vendors.
 
-Questionable AI (qAI) automates the workflow that power users already do manually — and logs the full debate as structured data for analysis.
+Mutual Dissent automates the workflow that power users already do manually — and logs the full debate as structured data for analysis.
 
 ---
 
@@ -21,7 +21,7 @@ Questionable AI (qAI) automates the workflow that power users already do manuall
 - Core debate orchestrator: initial round → reflection round → synthesis
 - Model alias system (claude, gpt, gemini, grok → OpenRouter model IDs)
 - CLI with `ask` command and core flags (--panel, --synthesizer, --rounds)
-- JSON transcript logging to `~/.questionable-ai/transcripts/`
+- JSON transcript logging to `~/.mutual-dissent/transcripts/`
 - Terminal output formatting (Rich panels, color-coded models)
 - Configurable reflection and synthesis prompt templates
 - Config file for API key and default settings
@@ -54,7 +54,7 @@ Refactoring later means rewriting integrations.
 **Future provider stubs (not in this phase):**
 - OpenAI, Google, xAI — same `Provider` interface, implemented when needed
 
-**Done when:** `questionable-ai ask "test" --panel claude,gpt` routes Claude
+**Done when:** `mutual-dissent ask "test" --panel claude,gpt` routes Claude
 through Anthropic's API directly (if key is set) and GPT through OpenRouter,
 transparently. Existing config files continue to work unchanged.
 
@@ -108,10 +108,10 @@ for running debates and a research dashboard for analyzing transcripts.
 - Export: filtered transcript sets as JSON/CSV
 
 **Infrastructure:**
-- `questionable-ai serve` command (with `--port`, `--host`, `--no-open`)
+- `mutual-dissent serve` command (with `--port`, `--host`, `--no-open`)
 - Config panel in web UI for provider keys and routing
 
-**Done when:** `questionable-ai serve` opens a browser with a functional debate
+**Done when:** `mutual-dissent serve` opens a browser with a functional debate
 interface that streams responses live, and a dashboard that visualizes patterns
 across saved transcripts.
 

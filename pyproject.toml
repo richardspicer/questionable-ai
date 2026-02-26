@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "questionable-ai"
+name = "mutual-dissent"
 version = "0.1.0"
 description = "Cross-vendor multi-model debate and consensus engine for AI response distillation"
 requires-python = ">=3.14"
@@ -15,8 +15,8 @@ dependencies = [
 ]
 
 [project.scripts]
-questionable-ai = "questionable_ai.cli:main"
-qai = "questionable_ai.cli:main"
+mutual-dissent = "mutual_dissent.cli:main"
+dissent = "mutual_dissent.cli:main"
 
 [dependency-groups]
 dev = [

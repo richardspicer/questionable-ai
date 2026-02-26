@@ -1,7 +1,7 @@
 """Transcript logging — JSON serialization and file storage.
 
 Writes complete debate transcripts as structured JSON files to the
-transcript directory (~/.questionable-ai/transcripts/). Supports
+transcript directory (~/.mutual-dissent/transcripts/). Supports
 saving, listing, and loading transcripts by ID.
 
 File naming convention: {date}_{short-id}.json
@@ -13,8 +13,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from questionable_ai.config import TRANSCRIPT_DIR, ensure_dirs
-from questionable_ai.models import DebateTranscript
+from mutual_dissent.config import TRANSCRIPT_DIR, ensure_dirs
+from mutual_dissent.models import DebateTranscript
 
 
 def save_transcript(transcript: DebateTranscript) -> Path:

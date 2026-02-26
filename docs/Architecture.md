@@ -1,4 +1,4 @@
-# Questionable AI (qAI) — Design
+# Mutual Dissent — Design
 
 ## Architecture
 
@@ -58,7 +58,7 @@ Orchestrator.
 **Web UI** — NiceGUI-based web interface with two modes: a debate view (power
 tool aesthetic — dark, dense, keyboard-driven, live streaming) and a research
 dashboard (card-based, data-focused, transcript browser with visualizations).
-Started via `questionable-ai serve`. Calls the same Orchestrator as the CLI.
+Started via `mutual-dissent serve`. Calls the same Orchestrator as the CLI.
 
 **Desktop App** — Tauri 2 wrapper around the Web UI. Native window, system tray,
 ~5-15 MB binary. Optional — the web UI runs standalone in any browser.
@@ -194,7 +194,7 @@ Model alias → vendor mapping (hardcoded: claude→anthropic, gpt→openai, etc
 
 ### Config File
 
-`~/.questionable-ai/config.toml`
+`~/.mutual-dissent/config.toml`
 
 ```toml
 # Legacy — still works, maps to providers.openrouter.api_key
@@ -338,7 +338,7 @@ class DebateTranscript:
 ### Transcript Storage
 
 ```
-~/.questionable-ai/
+~/.mutual-dissent/
 └── transcripts/
     └── 2026-02-21_uuid-short.json
 ```
@@ -347,10 +347,10 @@ class DebateTranscript:
 
 ## CLI Interface
 
-> **Shorthand:** `qai` is a built-in alias. Both `qai` and `questionable-ai` work identically.
+> **Shorthand:** `dissent` is a built-in alias. Both `dissent` and `mutual-dissent` work identically.
 
 ```
-questionable-ai
+mutual-dissent
   ask         Submit a query to the panel for debate
   replay      Re-run synthesis on an existing transcript
   list        List saved transcripts
@@ -362,7 +362,7 @@ questionable-ai
 ### ask
 
 ```
-questionable-ai ask "What is the most effective approach to securing MCP servers?"
+mutual-dissent ask "What is the most effective approach to securing MCP servers?"
 ```
 
 ### Flags
@@ -381,8 +381,8 @@ questionable-ai ask "What is the most effective approach to securing MCP servers
 ### serve
 
 ```
-questionable-ai serve
-questionable-ai serve --port 8080 --host 0.0.0.0
+mutual-dissent serve
+mutual-dissent serve --port 8080 --host 0.0.0.0
 ```
 
 Starts the NiceGUI web server. Opens browser automatically unless `--no-open`.
@@ -390,7 +390,7 @@ Starts the NiceGUI web server. Opens browser automatically unless `--no-open`.
 ### replay
 
 ```
-questionable-ai replay <transcript-id> --synthesizer grok --rounds 1
+mutual-dissent replay <transcript-id> --synthesizer grok --rounds 1
 ```
 
 ### Model Aliases
@@ -457,7 +457,7 @@ Card-based interface for analyzing debate transcripts and patterns.
 ### Server Architecture
 
 ```
-questionable-ai serve
+mutual-dissent serve
         │
         ▼
 ┌────────────────────┐
@@ -538,7 +538,7 @@ coherent, unified answer.
 
 ### Adding a New Provider
 
-1. Create `src/questionable_ai/providers/{vendor}.py`
+1. Create `src/mutual_dissent/providers/{vendor}.py`
 2. Implement `Provider` abstract class (`complete`, `complete_parallel`, context manager)
 3. Register in `ProviderRouter` vendor mapping
 4. Add env var and config key to `Config`
@@ -582,7 +582,7 @@ The `--ground-truth` flag enables post-debate analysis:
 ## Security Considerations
 
 - **API key management** — Provider keys stored in environment variables or
-  `~/.questionable-ai/config.toml`, never in code or transcripts. Multiple
+  `~/.mutual-dissent/config.toml`, never in code or transcripts. Multiple
   keys now (one per provider) — gitleaks pre-commit hook catches leaks.
 - **Transcript sanitization** — Transcripts may contain sensitive query content.
   The `provider` field in responses reveals which API was used. No automatic
