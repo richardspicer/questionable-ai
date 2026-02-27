@@ -66,8 +66,7 @@ class TestVendorConfigAlignment:
         vendor_values = {v.value for v in Vendor}
         for provider_key in _PROVIDER_ENV_MAP:
             assert provider_key in vendor_values, (
-                f"Provider key '{provider_key}' from _PROVIDER_ENV_MAP "
-                f"is not a valid Vendor value"
+                f"Provider key '{provider_key}' from _PROVIDER_ENV_MAP is not a valid Vendor value"
             )
 
     def test_vendor_lookup_from_provider_keys(self) -> None:
