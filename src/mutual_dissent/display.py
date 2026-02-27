@@ -18,6 +18,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from mutual_dissent.models import DebateTranscript, ModelResponse
+from mutual_dissent.types import RoutingDecision
 
 console = Console()
 
@@ -228,3 +229,54 @@ def _total_tokens(transcript: DebateTranscript) -> int:
     if transcript.synthesis and transcript.synthesis.token_count is not None:
         total += transcript.synthesis.token_count
     return total
+
+
+def render_config_test(
+    results: list[dict[str, RoutingDecision | ModelResponse | str]],
+) -> None:
+    """Render config test results as a Rich table.
+
+    Displays a table with routing decision and response status for each
+    model alias tested, showing vendor, route type, resolved model ID,
+    latency, and success/error status.
+
+    Args:
+        results: List of result dicts, each containing:
+            - ``alias`` (str): Model alias tested.
+            - ``decision`` (RoutingDecision): Routing decision for the alias.
+            - ``response`` (ModelResponse): Response from the test prompt.
+    """
+    table = Table(show_header=True, padding=(0, 1))
+    table.add_column("Alias", style="bold")
+    table.add_column("Vendor")
+    table.add_column("Route")
+    table.add_column("Model ID", style="dim")
+    table.add_column("Latency", justify="right")
+    table.add_column("Status")
+
+    for result in results:
+        alias = str(result["alias"])
+        decision: RoutingDecision = result["decision"]  # type: ignore[assignment]
+        response: ModelResponse = result["response"]  # type: ignore[assignment]
+
+        color = _get_color(alias)
+        alias_str = f"[{color}]{alias}[/{color}]"
+        vendor_str = decision.vendor.value
+        route_str = "openrouter" if decision.via_openrouter else "direct"
+        model_id_str = response.model_id
+
+        if response.error:
+            latency_str = "\u2014"
+            status_str = f"[red]\u2717 {response.error}[/red]"
+        else:
+            if response.latency_ms is not None:
+                latency_str = f"{response.latency_ms / 1000:.1f}s"
+            else:
+                latency_str = "\u2014"
+            status_str = "[green]\u2713[/green]"
+
+        table.add_row(alias_str, vendor_str, route_str, model_id_str, latency_str, status_str)
+
+    console.print()
+    console.print(table)
+    console.print()

@@ -19,10 +19,13 @@ import click
 from rich.console import Console
 
 from mutual_dissent import __version__
-from mutual_dissent.config import load_config
-from mutual_dissent.display import render_debate
+from mutual_dissent.config import Config, load_config
+from mutual_dissent.display import render_config_test, render_debate
+from mutual_dissent.models import ModelResponse
 from mutual_dissent.orchestrator import run_debate
+from mutual_dissent.providers.router import ProviderRouter
 from mutual_dissent.transcript import save_transcript
+from mutual_dissent.types import RoutingDecision
 
 console = Console(stderr=True)
 
@@ -136,6 +139,78 @@ def ask(
         click.echo(json.dumps(transcript.to_dict(), indent=2))
     else:
         render_debate(transcript, verbose=verbose)
+
+
+@main.group()
+def config() -> None:
+    """Manage configuration."""
+
+
+async def _run_config_test(
+    cfg: Config,
+    aliases: list[str],
+) -> list[dict[str, RoutingDecision | ModelResponse | str]]:
+    """Send a test prompt to each alias and collect results.
+
+    Opens a ``ProviderRouter``, resolves routing for each alias, then
+    sends ``"Say OK"`` to all models in parallel.
+
+    Args:
+        cfg: Application configuration.
+        aliases: List of unique model aliases to test.
+
+    Returns:
+        List of result dicts with ``alias``, ``decision``, and ``response``.
+    """
+    async with ProviderRouter(cfg) as router:
+        decisions = {alias: router.route(alias) for alias in aliases}
+
+        requests = [
+            {"alias_or_id": alias, "prompt": "Say OK", "model_alias": alias} for alias in aliases
+        ]
+        responses = await router.complete_parallel(requests)
+
+    return [
+        {"alias": alias, "decision": decisions[alias], "response": resp}
+        for alias, resp in zip(aliases, responses, strict=True)
+    ]
+
+
+@config.command()
+def test() -> None:
+    """Test provider configuration and model routing.
+
+    Sends a minimal prompt to each model in the default panel and
+    synthesizer.  Reports routing decisions, provider used, latency,
+    and errors.
+    """
+    cfg = load_config()
+
+    # Validate that at least one provider key is configured.
+    if not cfg.api_key and not any(cfg.providers.values()):
+        console.print(
+            "[red bold]Error:[/red bold] No API key found.\n"
+            "Set OPENROUTER_API_KEY (or another provider key) environment variable\n"
+            "or configure keys in ~/.mutual-dissent/config.toml"
+        )
+        sys.exit(1)
+
+    # Collect unique aliases: default panel + synthesizer.
+    aliases = list(dict.fromkeys(cfg.default_panel + [cfg.default_synthesizer]))
+
+    console.print(f"[dim]Testing {len(aliases)} model(s)...[/dim]")
+
+    try:
+        results = asyncio.run(_run_config_test(cfg, aliases))
+    except Exception as exc:
+        console.print(f"[red bold]Error:[/red bold] {exc}")
+        sys.exit(1)
+
+    render_config_test(results)
+
+    # Exit 1 if any model failed.
+    if any(r["response"].error for r in results):  # type: ignore[union-attr]
+        sys.exit(1)
 
 
 if __name__ == "__main__":
