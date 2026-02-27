@@ -24,7 +24,7 @@ Single-vendor multi-agent systems (Grok's 4-agent debate, Anthropic's agent team
 ## Installation
 
 ```bash
-git clone https://github.com/richardspicer/mutual-dissent.git
+git clone https://github.com/q-uestionable-AI/mutual-dissent.git
 cd mutual-dissent
 uv sync
 ```

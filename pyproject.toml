@@ -26,9 +26,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/richardspicer/mutual-dissent"
-Repository = "https://github.com/richardspicer/mutual-dissent"
-Issues = "https://github.com/richardspicer/mutual-dissent/issues"
+Homepage = "https://github.com/q-uestionable-AI/mutual-dissent"
+Repository = "https://github.com/q-uestionable-AI/mutual-dissent"
+Issues = "https://github.com/q-uestionable-AI/mutual-dissent/issues"
 
 [project.scripts]
 mutual-dissent = "mutual_dissent.cli:main"

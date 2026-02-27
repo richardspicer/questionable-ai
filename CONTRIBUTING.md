@@ -5,7 +5,7 @@ Mutual Dissent is an early-stage research tool. Contributions are welcome — wh
 ## Quick Start
 
 ```bash
-git clone https://github.com/richardspicer/mutual-dissent.git
+git clone https://github.com/q-uestionable-AI/mutual-dissent.git
 cd mutual-dissent
 uv sync
 pre-commit install
@@ -24,7 +24,7 @@ uv run mutual-dissent ask "test query" --verbose
 
 ```powershell
 # Clone and setup
-git clone https://github.com/richardspicer/mutual-dissent.git
+git clone https://github.com/q-uestionable-AI/mutual-dissent.git
 cd mutual-dissent
 
 # Install dependencies (creates .venv automatically)
