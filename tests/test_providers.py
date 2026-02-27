@@ -375,8 +375,8 @@ class TestBackwardCompatShim:
 
         assert ShimError is OpenRouterError
 
-    def test_orchestrator_import_still_works(self) -> None:
-        """The exact import path used by orchestrator.py still resolves."""
+    def test_shim_import_still_works(self) -> None:
+        """The client.py shim still resolves for external callers."""
         from mutual_dissent.client import OpenRouterClient
 
         client = OpenRouterClient(api_key="sk-or-compat")

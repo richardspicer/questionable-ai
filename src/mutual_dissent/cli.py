@@ -99,12 +99,12 @@ def ask(
     """
     config = load_config()
 
-    # Validate API key.
-    if not config.api_key:
+    # Validate that at least one provider key is configured.
+    if not config.api_key and not any(config.providers.values()):
         console.print(
             "[red bold]Error:[/red bold] No API key found.\n"
-            "Set OPENROUTER_API_KEY environment variable or add "
-            "api_key to ~/.mutual-dissent/config.toml"
+            "Set OPENROUTER_API_KEY (or another provider key) environment variable\n"
+            "or configure keys in ~/.mutual-dissent/config.toml"
         )
         sys.exit(1)
 

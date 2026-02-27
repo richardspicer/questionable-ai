@@ -18,7 +18,6 @@ Typical usage::
 from __future__ import annotations
 
 from mutual_dissent import __version__
-from mutual_dissent.client import OpenRouterClient
 from mutual_dissent.config import Config
 from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
 from mutual_dissent.prompts import (
@@ -28,6 +27,7 @@ from mutual_dissent.prompts import (
     format_synthesis,
     format_transcript_for_synthesis,
 )
+from mutual_dissent.providers.router import ProviderRouter
 
 
 async def run_debate(
@@ -57,32 +57,26 @@ async def run_debate(
         Complete DebateTranscript with all rounds and synthesis.
 
     Raises:
-        ValueError: If the API key is missing or panel is empty.
+        ValueError: If the panel is empty or no provider is available.
     """
     # Resolve defaults.
     panel_aliases = panel or config.default_panel
     synth_alias = synthesizer or config.default_synthesizer
     num_rounds = min(rounds or config.default_rounds, 3)
 
-    # Resolve to OpenRouter model IDs.
-    panel_ids = config.resolve_panel(panel_aliases)
-    synth_id = config.resolve_model(synth_alias)
-
-    # Build alias lookup: model_id → alias.
-    alias_map = _build_alias_map(panel_aliases, panel_ids, synth_alias, synth_id)
-
-    # Initialize transcript.
+    # Initialize transcript — stores aliases, not resolved model IDs.
+    # Each ModelResponse carries the resolved model_id set by the router.
     transcript = DebateTranscript(
         query=query,
-        panel=panel_ids,
-        synthesizer_id=synth_id,
+        panel=list(panel_aliases),
+        synthesizer_id=synth_alias,
         max_rounds=num_rounds,
-        metadata={"version": __version__, "openrouter_api": True},
+        metadata={"version": __version__},
     )
 
-    async with OpenRouterClient(api_key=config.api_key) as client:
+    async with ProviderRouter(config) as router:
         # --- Initial round ---
-        initial_responses = await _run_initial_round(client, query, panel_ids, alias_map)
+        initial_responses = await _run_initial_round(router, query, panel_aliases)
         transcript.rounds.append(
             DebateRound(round_number=0, round_type="initial", responses=initial_responses)
         )
@@ -91,7 +85,7 @@ async def run_debate(
         prev_responses = initial_responses
         for round_num in range(1, num_rounds + 1):
             reflection_responses = await _run_reflection_round(
-                client, query, panel_ids, alias_map, prev_responses, round_num
+                router, query, panel_aliases, prev_responses, round_num
             )
             transcript.rounds.append(
                 DebateRound(
@@ -103,25 +97,23 @@ async def run_debate(
             prev_responses = reflection_responses
 
         # --- Synthesis ---
-        synthesis = await _run_synthesis(client, query, synth_id, alias_map, transcript)
+        synthesis = await _run_synthesis(router, query, synth_alias, transcript)
         transcript.synthesis = synthesis
 
     return transcript
 
 
 async def _run_initial_round(
-    client: OpenRouterClient,
+    router: ProviderRouter,
     query: str,
-    panel_ids: list[str],
-    alias_map: dict[str, str],
+    panel_aliases: list[str],
 ) -> list[ModelResponse]:
     """Fan out the initial query to all panel models in parallel.
 
     Args:
-        client: Active OpenRouter client.
+        router: Active provider router.
         query: User's original query.
-        panel_ids: List of OpenRouter model IDs.
-        alias_map: model_id → alias mapping.
+        panel_aliases: List of model aliases.
 
     Returns:
         List of ModelResponse objects from all panel members.
@@ -129,21 +121,20 @@ async def _run_initial_round(
     prompt = format_initial(query)
     requests = [
         {
-            "model_id": mid,
+            "alias_or_id": alias,
             "prompt": prompt,
-            "model_alias": alias_map.get(mid, mid),
+            "model_alias": alias,
             "round_number": 0,
         }
-        for mid in panel_ids
+        for alias in panel_aliases
     ]
-    return await client.complete_parallel(requests)
+    return await router.complete_parallel(requests)
 
 
 async def _run_reflection_round(
-    client: OpenRouterClient,
+    router: ProviderRouter,
     query: str,
-    panel_ids: list[str],
-    alias_map: dict[str, str],
+    panel_aliases: list[str],
     prev_responses: list[ModelResponse],
     round_number: int,
 ) -> list[ModelResponse]:
@@ -153,48 +144,46 @@ async def _run_reflection_round(
     previous responses, and is asked to reflect and refine.
 
     Args:
-        client: Active OpenRouter client.
+        router: Active provider router.
         query: User's original query.
-        panel_ids: List of OpenRouter model IDs.
-        alias_map: model_id → alias mapping.
+        panel_aliases: List of model aliases.
         prev_responses: Responses from the previous round.
         round_number: Current reflection round number (1-indexed).
 
     Returns:
         List of ModelResponse objects from all panel members.
     """
-    # Index previous responses by model_id for lookup.
-    response_map: dict[str, ModelResponse] = {r.model_id: r for r in prev_responses}
+    # Index previous responses by model_alias for lookup.
+    response_map: dict[str, ModelResponse] = {r.model_alias: r for r in prev_responses}
 
     requests = []
-    for mid in panel_ids:
-        own = response_map.get(mid)
+    for alias in panel_aliases:
+        own = response_map.get(alias)
         own_text = own.content if own and not own.error else "[No response available]"
 
         others = [
-            (alias_map.get(r.model_id, r.model_id), r.content)
+            (r.model_alias, r.content)
             for r in prev_responses
-            if r.model_id != mid and not r.error
+            if r.model_alias != alias and not r.error
         ]
 
         prompt = format_reflection(query, own_text, others)
         requests.append(
             {
-                "model_id": mid,
+                "alias_or_id": alias,
                 "prompt": prompt,
-                "model_alias": alias_map.get(mid, mid),
+                "model_alias": alias,
                 "round_number": round_number,
             }
         )
 
-    return await client.complete_parallel(requests)
+    return await router.complete_parallel(requests)
 
 
 async def _run_synthesis(
-    client: OpenRouterClient,
+    router: ProviderRouter,
     query: str,
-    synth_id: str,
-    alias_map: dict[str, str],
+    synth_alias: str,
     transcript: DebateTranscript,
 ) -> ModelResponse:
     """Run the synthesis step using the designated model.
@@ -203,10 +192,9 @@ async def _run_synthesis(
     consolidated answer.
 
     Args:
-        client: Active OpenRouter client.
+        router: Active provider router.
         query: User's original query.
-        synth_id: OpenRouter model ID for synthesis.
-        alias_map: model_id → alias mapping.
+        synth_alias: Model alias for synthesis.
         transcript: The debate transcript so far (initial + reflections).
 
     Returns:
@@ -219,9 +207,7 @@ async def _run_synthesis(
             RoundSummary(
                 round_type=debate_round.round_type,
                 responses=[
-                    (alias_map.get(r.model_id, r.model_id), r.content)
-                    for r in debate_round.responses
-                    if not r.error
+                    (r.model_alias, r.content) for r in debate_round.responses if not r.error
                 ],
             )
         )
@@ -229,33 +215,9 @@ async def _run_synthesis(
     formatted = format_transcript_for_synthesis(round_data)
     prompt = format_synthesis(query, formatted)
 
-    return await client.complete(
-        model_id=synth_id,
+    return await router.complete(
+        synth_alias,
         prompt=prompt,
-        model_alias=alias_map.get(synth_id, synth_id),
+        model_alias=synth_alias,
         round_number=-1,
     )
-
-
-def _build_alias_map(
-    panel_aliases: list[str],
-    panel_ids: list[str],
-    synth_alias: str,
-    synth_id: str,
-) -> dict[str, str]:
-    """Build a model_id → alias mapping for display purposes.
-
-    Args:
-        panel_aliases: Short names used for panel members.
-        panel_ids: Resolved OpenRouter model IDs for panel.
-        synth_alias: Short name for the synthesizer.
-        synth_id: Resolved OpenRouter model ID for synthesizer.
-
-    Returns:
-        Dictionary mapping model IDs to their human-readable aliases.
-    """
-    alias_map: dict[str, str] = {}
-    for alias, mid in zip(panel_aliases, panel_ids, strict=True):
-        alias_map[mid] = alias
-    alias_map[synth_id] = synth_alias
-    return alias_map
