@@ -126,6 +126,8 @@ After changes, smoke test: `mutual-dissent --help`
 ## Claude Code Guardrails
 
 ### Verification Scope
+- Run `uv run ruff check` and `uv run ruff format --check` on new/changed files before committing
+- Run `uv run mypy` on new/changed source files before committing
 - Run only the tests for new/changed code, not the full suite
 - Smoke test the CLI after changes
 - Full suite verification is the developer's responsibility before merging
