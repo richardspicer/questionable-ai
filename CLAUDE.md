@@ -57,7 +57,10 @@ All API calls within a round are parallel (async).
 
 ## Git Workflow
 
-**Never commit directly to main.** Pre-commit hook blocks it.
+**Before writing any code, create a feature branch.** Check the current branch
+with `git branch --show-current`. If on `main`, create and switch to a feature
+branch before making changes. Pre-commit hook blocks commits to `main`, but
+the branch must exist before work starts — not at commit time.
 
 ```
 git checkout main && git pull
