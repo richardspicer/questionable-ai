@@ -24,7 +24,7 @@ from mutual_dissent.display import render_config_test, render_debate, render_tra
 from mutual_dissent.models import ModelResponse
 from mutual_dissent.orchestrator import run_debate
 from mutual_dissent.providers.router import ProviderRouter
-from mutual_dissent.transcript import list_transcripts, save_transcript
+from mutual_dissent.transcript import list_transcripts, load_transcript, save_transcript
 from mutual_dissent.types import RoutingDecision
 
 console = Console(stderr=True)
@@ -159,6 +159,54 @@ def list_cmd(limit: int) -> None:
     """
     transcripts = list_transcripts(limit=limit)
     render_transcript_list(transcripts)
+
+
+@main.command()
+@click.argument("transcript_id")
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Show all rounds, not just synthesis.",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"], case_sensitive=False),
+    default="terminal",
+    help="Output format (default: terminal).",
+)
+def show(transcript_id: str, verbose: bool, output: str) -> None:
+    """Display a saved debate transcript.
+
+    Loads and renders a transcript by its full or partial ID (minimum 4
+    characters). In default mode, shows synthesis and metadata. With
+    --verbose, shows all rounds.
+
+    Args:
+        transcript_id: Full UUID or prefix (min 4 chars) to match.
+        verbose: Show all round responses.
+        output: Output format choice.
+    """
+    if len(transcript_id) < 4:
+        console.print("[red bold]Error:[/red bold] Transcript ID must be at least 4 characters.")
+        sys.exit(1)
+
+    try:
+        transcript = load_transcript(transcript_id)
+    except ValueError as exc:
+        console.print(f"[red bold]Error:[/red bold] {exc}")
+        sys.exit(1)
+
+    if transcript is None:
+        console.print(
+            f"[red bold]Error:[/red bold] No transcript found matching '{transcript_id}'."
+        )
+        sys.exit(1)
+
+    if output == "json":
+        click.echo(json.dumps(transcript.to_dict(), indent=2))
+    else:
+        render_debate(transcript, verbose=verbose)
 
 
 @main.group()
