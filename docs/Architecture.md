@@ -34,7 +34,7 @@
   API          API           API
 ```
 
-### Debate Flow (unchanged)
+### Debate Flow
 
 ```
 Fan-out (parallel) → Reflection Router → Reflection (parallel)
@@ -43,6 +43,11 @@ Fan-out (parallel) → Reflection Router → Reflection (parallel)
                                               │
                                               ▼
                                          Synthesizer
+                                              │
+                                    (if --ground-truth)
+                                              │
+                                              ▼
+                                      Scoring (judge)
                                               │
                               ┌────────────┼────────────┐
                               ▼            ▼            ▼
@@ -83,6 +88,12 @@ but not its own restated. Configurable reflection prompt template.
 **Synthesizer** — Final step. The user-selected model receives the full debate
 context (query + all rounds) and produces a consolidated answer. Same provider
 interface as panel models.
+
+**Scoring** — Optional ground-truth evaluation via LLM-as-judge. When
+`--ground-truth` is provided, sends the synthesis and reference answer to the
+judge model (currently the synthesizer) for accuracy/completeness scoring.
+Scores stored in `synthesis.analysis["ground_truth_score"]` and
+`transcript.metadata["scores"]`. Implemented in `scoring.py`.
 
 **Transcript Logger** — Writes full structured JSON for every debate. Also
 produces optional Markdown summary for quick review.
@@ -456,7 +467,8 @@ mutual-dissent ask "What is the most effective approach to securing MCP servers?
 | `--no-save` | flag | false | Don't save transcript to disk |
 | `--verbose` | flag | false | Show individual model responses as they arrive |
 | `--ground-truth` | str | None | Known correct answer for post-debate scoring |
-| `--file` | path | None | File to include as context |
+| `--ground-truth-file` | path | None | File containing reference answer for scoring |
+| `--file` | path | None | Write output to file instead of stdout |
 
 ### serve
 
@@ -612,6 +624,33 @@ significant disagreements remain. Do not simply concatenate — produce a
 coherent, unified answer.
 ```
 
+### Scoring Prompt
+
+```
+You are evaluating the quality of an AI-generated answer against a known
+correct reference answer.
+
+Original query: {query}
+
+Reference answer (ground truth):
+{ground_truth}
+
+Response to evaluate:
+{synthesis}
+
+Score the response on two dimensions, each from 1 to 5:
+
+- Accuracy (1-5): How factually correct is the response compared to the
+  reference? 5 = fully correct, 1 = fundamentally wrong.
+- Completeness (1-5): How much of the reference answer's key information
+  does the response cover? 5 = covers everything, 1 = misses almost all points.
+
+Respond in EXACTLY this format (no other text):
+ACCURACY: <score>
+COMPLETENESS: <score>
+EXPLANATION: <1-3 sentence explanation of the scores>
+```
+
 ---
 
 ## Extension Points
@@ -649,13 +688,20 @@ Add topology as a strategy class that implements the reflection routing interfac
 1. Create a formatter that takes a `DebateTranscript` and produces output
 2. Register in CLI `--output` choices
 
-### Adding Ground Truth Scoring
+### Ground Truth Scoring (Implemented)
 
-The `--ground-truth` flag enables post-debate analysis:
-- Score each model's initial response against the known answer
-- Score each model's reflection response — did reflection improve or degrade?
-- Score the synthesis — is the final answer better than any individual?
-- Output a scoring summary alongside the transcript
+The `--ground-truth` flag enables post-debate scoring against a known-correct
+reference answer. Currently scores the synthesis only (v1). Uses the synthesizer
+model as judge (self-evaluation bias — documented limitation).
+
+**Current:** `scoring.py` — `GroundTruthScore` dataclass, `parse_score_response()`,
+`score_synthesis()`. Scores stored in `synthesis.analysis["ground_truth_score"]`.
+
+**Future extensions:**
+- `--judge` flag to use a different model for scoring
+- Score individual model responses (not just synthesis)
+- Custom rubrics or scoring dimensions
+- Batch scoring across multiple transcripts
 
 ---
 
