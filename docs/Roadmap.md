@@ -100,10 +100,14 @@ schema upgrades → routing smoke test.
 
 ---
 
-### Phase 2: CLI Expansion
+### Phase 2: CLI Expansion ✅ COMPLETE
 
 **Goal:** Replay capability, additional output formats, file input, ground truth
 scoring, and cost tracking. The CLI becomes a complete research tool.
+
+**Completed:** 2026-02-28. All deliverables merged: replay, list/show, markdown
+output + --file, --ground-truth scoring, cost tracking, config commands,
+environment variable docs, ProviderCapabilities, pinned dependencies. 325+ tests.
 
 **Deliverables:**
 - `replay` command — re-run synthesis or add rounds to existing transcripts
@@ -157,7 +161,47 @@ across saved transcripts.
 
 ---
 
-### Phase 4: Maturity
+### Phase 4: Documentation & Developer Experience
+
+**Goal:** Comprehensive, user-facing documentation powered by Mintlify with
+built-in AI assistant, MCP server integration, and LLM-optimized content.
+Documentation that teaches through examples, screenshots, and video — not just
+reference material.
+
+**Platform:** Mintlify (OSS program — Pro plan, free for non-commercial open
+source). Git-based workflow: markdown/MDX in-repo, GitHub sync to hosted docs
+site.
+
+**Deliverables:**
+
+*Infrastructure:*
+- Mintlify setup with GitHub sync from `docs/` directory
+- Custom domain (e.g., docs.mutual-dissent.dev)
+- AI Assistant configured and trained on project docs
+- MCP server for querying docs from Cursor, Claude, VS Code
+- `llms.txt` for AI-optimized content indexing
+
+*User-facing content:*
+- Quickstart guide — install, first debate, transcript walkthrough with
+  screenshots
+- CLI reference — all commands, flags, examples, terminal output screenshots
+- Transcript schema docs — JSON format, field reference, example transcripts
+- Config reference — TOML schema, provider setup, routing modes, environment
+  variables
+- Architecture overview — system diagram, data flow, extension points
+
+*Research & multimedia:*
+- Research methodology guide — using Mutual Dissent for AI behavior analysis
+- Video/GIF content — CLI workflow recordings, debate-in-action demos
+- Cross-repo docs consistency (CounterAgent, CounterSignal, mcp-audit)
+
+**Done when:** `docs.mutual-dissent.dev` (or equivalent) serves a complete,
+searchable documentation site with AI assistant. A new user can go from zero to
+running their first debate using only the docs.
+
+---
+
+### Phase 5: Maturity
 
 **Goal:** Desktop packaging, advanced research tooling, alternative topologies,
 local model support, and public release polish.
