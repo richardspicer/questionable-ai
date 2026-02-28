@@ -19,7 +19,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-from mutual_dissent.models import DebateTranscript, ModelResponse
+from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
 from mutual_dissent.types import RoutingDecision
 
 console = Console()
@@ -231,6 +231,152 @@ def _total_tokens(transcript: DebateTranscript) -> int:
     if transcript.synthesis and transcript.synthesis.token_count is not None:
         total += transcript.synthesis.token_count
     return total
+
+
+def format_markdown(transcript: DebateTranscript, *, verbose: bool = False) -> str:
+    """Format a debate transcript as a plain Markdown string.
+
+    Pure function — no Rich markup, no console, no side effects. Returns
+    a Markdown document suitable for piping to a file or stdout.
+
+    In default mode, shows synthesis and metadata. In verbose mode,
+    includes all round responses before synthesis.
+
+    Args:
+        transcript: Completed debate transcript to format.
+        verbose: If True, include all round responses.
+
+    Returns:
+        Plain Markdown string.
+    """
+    suffix = "..." if len(transcript.query) > 80 else ""
+    lines: list[str] = [f"# Debate: {transcript.query[:80]}{suffix}", ""]
+
+    if verbose:
+        for debate_round in transcript.rounds:
+            lines.extend(_format_round_markdown(debate_round))
+            lines.append("")
+
+    lines.extend(_format_synthesis_markdown(transcript))
+    lines.append("")
+    lines.extend(_format_metadata_markdown(transcript))
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def _format_round_markdown(debate_round: DebateRound) -> list[str]:
+    """Format one debate round as Markdown lines.
+
+    Args:
+        debate_round: A single debate round with responses.
+
+    Returns:
+        List of Markdown lines for the round.
+    """
+    if debate_round.round_type == "initial":
+        label = "Initial Round"
+    else:
+        label = f"Reflection Round {debate_round.round_number}"
+
+    lines: list[str] = [f"## {label}", ""]
+
+    for resp in debate_round.responses:
+        lines.extend(_format_response_markdown(resp))
+        lines.append("")
+
+    return lines
+
+
+def _format_response_markdown(resp: ModelResponse) -> list[str]:
+    """Format a single model response as Markdown lines.
+
+    Args:
+        resp: The model response to format.
+
+    Returns:
+        List of Markdown lines for the response.
+    """
+    lines: list[str] = [f"### {resp.model_alias}", ""]
+    timing = _format_timing(resp)
+    meta_parts = [resp.model_id]
+    if timing:
+        meta_parts.append(timing)
+    lines.append(f"*{' · '.join(meta_parts)}*")
+    lines.append("")
+
+    if resp.error:
+        lines.append(f"**Error:** {resp.error}")
+    else:
+        lines.append(resp.content)
+
+    return lines
+
+
+def _format_synthesis_markdown(transcript: DebateTranscript) -> list[str]:
+    """Format the synthesis section as Markdown lines.
+
+    Args:
+        transcript: The completed debate transcript.
+
+    Returns:
+        List of Markdown lines for the synthesis section.
+    """
+    lines: list[str] = ["## Synthesis", ""]
+
+    if not transcript.synthesis:
+        lines.append("No synthesis available.")
+        return lines
+
+    synth = transcript.synthesis
+
+    lines.append(f"**Synthesized by:** {synth.model_alias}")
+    lines.append(f"**Model:** {synth.model_id}")
+    timing = _format_timing(synth)
+    if timing:
+        lines.append(f"*{timing}*")
+    lines.append("")
+
+    if synth.error:
+        lines.append(f"**Error:** {synth.error}")
+    else:
+        lines.append(synth.content)
+
+    return lines
+
+
+def _format_metadata_markdown(transcript: DebateTranscript) -> list[str]:
+    """Format transcript metadata as Markdown lines.
+
+    Args:
+        transcript: The completed debate transcript.
+
+    Returns:
+        List of Markdown lines for the metadata footer.
+    """
+    lines: list[str] = ["---", ""]
+
+    lines.append(f"**Transcript:** {transcript.short_id}")
+
+    panel_str = (
+        ", ".join(r.model_alias for r in transcript.rounds[0].responses)
+        if transcript.rounds
+        else ", ".join(transcript.panel)
+    )
+    lines.append(f"**Panel:** {panel_str}")
+
+    synth_alias = transcript.synthesis.model_alias if transcript.synthesis else "none"
+    lines.append(f"**Synthesizer:** {synth_alias}")
+    lines.append(f"**Rounds:** {transcript.max_rounds}")
+
+    total_tokens = _total_tokens(transcript)
+    if total_tokens > 0:
+        lines.append(f"**Tokens:** {total_tokens:,}")
+
+    date_str = transcript.created_at.strftime("%Y-%m-%d %H:%M UTC")
+    lines.append(f"**Date:** {date_str}")
+
+    return lines
 
 
 def render_transcript_list(transcripts: list[dict[str, Any]]) -> None:

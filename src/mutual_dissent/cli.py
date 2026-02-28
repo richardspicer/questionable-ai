@@ -15,20 +15,76 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 import click
 from rich.console import Console
 
 from mutual_dissent import __version__
 from mutual_dissent.config import Config, load_config
-from mutual_dissent.display import render_config_test, render_debate, render_transcript_list
-from mutual_dissent.models import ModelResponse
+from mutual_dissent.display import (
+    format_markdown,
+    render_config_test,
+    render_debate,
+    render_transcript_list,
+)
+from mutual_dissent.models import DebateTranscript, ModelResponse
 from mutual_dissent.orchestrator import run_debate, run_replay
 from mutual_dissent.providers.router import ProviderRouter
 from mutual_dissent.transcript import list_transcripts, load_transcript, save_transcript
 from mutual_dissent.types import RoutingDecision
 
 console = Console(stderr=True)
+
+
+def _emit_output(
+    transcript: DebateTranscript,
+    *,
+    output: str,
+    output_file: str | None,
+    verbose: bool,
+) -> None:
+    """Build and emit formatted output for a debate transcript.
+
+    Dispatches to the appropriate formatter based on ``output`` format.
+    When ``output_file`` is set, writes to disk instead of stdout.
+    Terminal format with ``--file`` degrades to markdown with a stderr note.
+
+    Args:
+        transcript: Completed debate transcript to render.
+        output: Output format — "terminal", "json", or "markdown".
+        output_file: Path to write output to, or None for stdout.
+        verbose: If True, include all round responses in output.
+    """
+    # Terminal without --file: render Rich panels directly and return.
+    if output == "terminal" and output_file is None:
+        render_debate(transcript, verbose=verbose)
+        return
+
+    # Build the output string.
+    if output == "json":
+        content = json.dumps(transcript.to_dict(), indent=2)
+    else:
+        if output == "terminal":
+            console.print(
+                "[dim]Note: --output terminal not supported with --file, writing as markdown.[/dim]"
+            )
+        content = format_markdown(transcript, verbose=verbose)
+
+    # Normalize trailing newline.
+    content = content.rstrip("\n") + "\n"
+
+    if output_file is not None:
+        resolved = Path(output_file).resolve()
+        try:
+            with open(resolved, "w", encoding="utf-8") as f:
+                f.write(content)
+        except OSError as exc:
+            console.print(f"[red bold]Error:[/red bold] Cannot write to {resolved}: {exc}")
+            sys.exit(1)
+        console.print(f"[dim]Output written to {resolved}[/dim]")
+    else:
+        click.echo(content, nl=False)
 
 
 @click.group()
@@ -74,9 +130,16 @@ def main() -> None:
 )
 @click.option(
     "--output",
-    type=click.Choice(["terminal", "json"], case_sensitive=False),
+    type=click.Choice(["terminal", "json", "markdown"], case_sensitive=False),
     default="terminal",
     help="Output format (default: terminal).",
+)
+@click.option(
+    "--file",
+    "output_file",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write output to FILE instead of stdout.",
 )
 def ask(
     query: str,
@@ -86,6 +149,7 @@ def ask(
     verbose: bool,
     no_save: bool,
     output: str,
+    output_file: str | None,
 ) -> None:
     """Send a query to the debate panel.
 
@@ -100,6 +164,7 @@ def ask(
         verbose: Show all round responses.
         no_save: Skip transcript saving.
         output: Output format choice.
+        output_file: Path to write output to.
     """
     config = load_config()
 
@@ -135,11 +200,7 @@ def ask(
         filepath = save_transcript(transcript)
         console.print(f"[dim]Transcript saved: {filepath.name}[/dim]")
 
-    # Render output.
-    if output == "json":
-        click.echo(json.dumps(transcript.to_dict(), indent=2))
-    else:
-        render_debate(transcript, verbose=verbose)
+    _emit_output(transcript, output=output, output_file=output_file, verbose=verbose)
 
 
 @main.command("list")
@@ -172,11 +233,18 @@ def list_cmd(limit: int) -> None:
 )
 @click.option(
     "--output",
-    type=click.Choice(["terminal", "json"], case_sensitive=False),
+    type=click.Choice(["terminal", "json", "markdown"], case_sensitive=False),
     default="terminal",
     help="Output format (default: terminal).",
 )
-def show(transcript_id: str, verbose: bool, output: str) -> None:
+@click.option(
+    "--file",
+    "output_file",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write output to FILE instead of stdout.",
+)
+def show(transcript_id: str, verbose: bool, output: str, output_file: str | None) -> None:
     """Display a saved debate transcript.
 
     Loads and renders a transcript by its full or partial ID (minimum 4
@@ -187,6 +255,7 @@ def show(transcript_id: str, verbose: bool, output: str) -> None:
         transcript_id: Full UUID or prefix (min 4 chars) to match.
         verbose: Show all round responses.
         output: Output format choice.
+        output_file: Path to write output to.
     """
     if len(transcript_id) < 4:
         console.print("[red bold]Error:[/red bold] Transcript ID must be at least 4 characters.")
@@ -204,10 +273,7 @@ def show(transcript_id: str, verbose: bool, output: str) -> None:
         )
         sys.exit(1)
 
-    if output == "json":
-        click.echo(json.dumps(transcript.to_dict(), indent=2))
-    else:
-        render_debate(transcript, verbose=verbose)
+    _emit_output(transcript, output=output, output_file=output_file, verbose=verbose)
 
 
 @main.command()
@@ -240,9 +306,16 @@ def show(transcript_id: str, verbose: bool, output: str) -> None:
 )
 @click.option(
     "--output",
-    type=click.Choice(["terminal", "json"], case_sensitive=False),
+    type=click.Choice(["terminal", "json", "markdown"], case_sensitive=False),
     default="terminal",
     help="Output format (default: terminal).",
+)
+@click.option(
+    "--file",
+    "output_file",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write output to FILE instead of stdout.",
 )
 def replay(
     transcript_id: str,
@@ -251,6 +324,7 @@ def replay(
     verbose: bool,
     no_save: bool,
     output: str,
+    output_file: str | None,
 ) -> None:
     """Re-synthesize or extend an existing debate transcript.
 
@@ -266,6 +340,7 @@ def replay(
         verbose: Show all round responses.
         no_save: Skip saving replay transcript.
         output: Output format choice.
+        output_file: Path to write output to.
     """
     # Validate transcript ID length (cheap check first).
     if len(transcript_id) < 4:
@@ -315,11 +390,7 @@ def replay(
         filepath = save_transcript(transcript)
         console.print(f"[dim]Replay transcript saved: {filepath.name}[/dim]")
 
-    # Render output.
-    if output == "json":
-        click.echo(json.dumps(transcript.to_dict(), indent=2))
-    else:
-        render_debate(transcript, verbose=verbose)
+    _emit_output(transcript, output=output, output_file=output_file, verbose=verbose)
 
 
 @main.group()
