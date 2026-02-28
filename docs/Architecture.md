@@ -702,6 +702,58 @@ Add topology as a strategy class that implements the reflection routing interfac
 1. Create a formatter that takes a `DebateTranscript` and produces output
 2. Register in CLI `--output` choices
 
+### Cross-Tool Research Integration
+
+Mutual Dissent serves as the multi-model observation platform for the broader
+security research portfolio (CounterSignal, CounterAgent). The following
+extension points enable research integration without modifying the core debate
+loop. See `Lab/Cross-Tool Research Directions.md` for the full research agenda.
+
+**Per-panelist context injection:**
+A `context` or `pre_prompt` field on `RoutedRequest` allows individual panelists
+to receive RAG context, system prompt overrides, or injected payload content
+without affecting other panelists. The Orchestrator passes this through
+transparently. Default: None (all panelists get the same query).
+
+Consumers: RXP retrieval-optimized documents, CounterAgent inject payloads,
+consensus poisoning pre-prompts for controlled experiments.
+
+**Round-level event hooks:**
+An `on_round_complete` callback or async event emitter on the Orchestrator fires
+after each round with the round's responses. Enables observation without
+modifying the core loop.
+
+Consumers: Web UI live debate view, research instrumentation (degradation curve
+measurement, per-round compliance tracking), detection rule triggers.
+
+**Experiment metadata schema:**
+A structured `experiment` key in `DebateTranscript.metadata`:
+
+```python
+"experiment": {
+    "experiment_id": str,         # Groups related runs
+    "source_tool": str,           # "countersignal" | "counteragent" | "manual"
+    "campaign_id": str | None,    # Links to CounterSignal campaign or CounterAgent scan
+    "condition": str,             # Experimental variable description
+    "variables": dict,            # Parameter values for this run
+    "finding_ref": str | None,    # e.g. "MD-003", "MCP-001"
+}
+```
+
+Makes transcripts self-describing and queryable across tools. The research
+dashboard can group/filter by experiment.
+
+**Payload source protocol (future):**
+A minimal interface abstracting where debate inputs come from:
+`get_query() -> str` and `get_context(model_alias: str) -> str | None`.
+Default: user-provided query, no per-model context. Enables programmatic
+integration with CounterSignal payload libraries and CounterAgent inject output.
+
+**Finding output adapter (future):**
+Export experiment results in a format compatible with CounterAgent's Finding
+model (Severity, CVSS, OWASP/ATLAS category). Enables cross-tool finding
+correlation without hard dependencies.
+
 ### Ground Truth Scoring (Implemented)
 
 The `--ground-truth` flag enables post-debate scoring against a known-correct

@@ -129,6 +129,20 @@ breakdowns.
 **Goal:** NiceGUI-based web interface with two modes — a power-tool debate view
 for running debates and a research dashboard for analyzing transcripts.
 
+**Prerequisites (cross-tool integration scaffolding):**
+Before the Web UI work begins, scaffold the extension points that make Mutual
+Dissent viable as a research platform for CounterSignal and CounterAgent. These
+are small additions that establish interface contracts the research agenda
+depends on. See `Lab/Cross-Tool Research Directions.md` for the full context.
+
+- Per-panelist context injection — `context`/`pre_prompt` field on
+  `RoutedRequest`, passed through Orchestrator. Enables asymmetric panels
+  (one model gets RAG context or payload, others don't).
+- Round-level event hooks — `on_round_complete` callback/emitter on
+  Orchestrator. Consumers: Web UI live view and research instrumentation.
+- Experiment metadata schema — structured `experiment` key on
+  `DebateTranscript.metadata` for campaign tracking and cross-tool correlation.
+
 **Stack:**
 - NiceGUI >= 3.7 (Python, async-native, Tailwind built in)
 - WebSocket transport for live model response streaming
