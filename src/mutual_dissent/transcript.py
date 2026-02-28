@@ -100,7 +100,7 @@ def list_transcripts(limit: int = 20) -> list[dict[str, str]]:
                     "file": filepath.name,
                 }
             )
-        except (json.JSONDecodeError, KeyError):
+        except json.JSONDecodeError, KeyError:
             continue
 
     return results
@@ -128,16 +128,16 @@ def _find_transcript_files(transcript_id: str) -> list[Path]:
                 full_id = data.get("transcript_id", "")
                 if full_id.startswith(transcript_id):
                     matches.append(filepath)
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError, KeyError:
                 continue
     return matches
 
 
-def _parse_datetime(value: str) -> datetime:
+def _parse_datetime(value: str | None) -> datetime:
     """Parse an ISO 8601 timestamp string to a datetime.
 
     Args:
-        value: ISO 8601 formatted timestamp string.
+        value: ISO 8601 formatted timestamp string, or None.
 
     Returns:
         Parsed datetime object. Falls back to current UTC time if parsing
@@ -147,7 +147,7 @@ def _parse_datetime(value: str) -> datetime:
         return datetime.now(UTC)
     try:
         return datetime.fromisoformat(value)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return datetime.now(UTC)
 
 
