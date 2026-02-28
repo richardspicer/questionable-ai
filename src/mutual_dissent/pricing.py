@@ -185,7 +185,7 @@ def _parse_pricing_response(data: dict[str, Any]) -> dict[str, ModelPricing]:
                 completion_price=float(completion_str),
                 context_length=int(ctx_len) if ctx_len is not None else None,
             )
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             continue
     return result
 
