@@ -20,11 +20,11 @@ from rich.console import Console
 
 from mutual_dissent import __version__
 from mutual_dissent.config import Config, load_config
-from mutual_dissent.display import render_config_test, render_debate
+from mutual_dissent.display import render_config_test, render_debate, render_transcript_list
 from mutual_dissent.models import ModelResponse
 from mutual_dissent.orchestrator import run_debate
 from mutual_dissent.providers.router import ProviderRouter
-from mutual_dissent.transcript import save_transcript
+from mutual_dissent.transcript import list_transcripts, save_transcript
 from mutual_dissent.types import RoutingDecision
 
 console = Console(stderr=True)
@@ -139,6 +139,26 @@ def ask(
         click.echo(json.dumps(transcript.to_dict(), indent=2))
     else:
         render_debate(transcript, verbose=verbose)
+
+
+@main.command("list")
+@click.option(
+    "--limit",
+    default=20,
+    type=click.IntRange(1),
+    help="Maximum transcripts to show (default: 20).",
+)
+def list_cmd(limit: int) -> None:
+    """List saved debate transcripts.
+
+    Shows a table of recent transcripts with IDs, dates, panel models,
+    and queries. Use ``dissent show <id>`` to view a specific transcript.
+
+    Args:
+        limit: Maximum number of transcripts to list.
+    """
+    transcripts = list_transcripts(limit=limit)
+    render_transcript_list(transcripts)
 
 
 @main.group()

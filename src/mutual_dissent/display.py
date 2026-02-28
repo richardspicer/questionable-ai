@@ -12,6 +12,8 @@ Typical usage::
 
 from __future__ import annotations
 
+from typing import Any
+
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -229,6 +231,57 @@ def _total_tokens(transcript: DebateTranscript) -> int:
     if transcript.synthesis and transcript.synthesis.token_count is not None:
         total += transcript.synthesis.token_count
     return total
+
+
+def render_transcript_list(transcripts: list[dict[str, Any]]) -> None:
+    """Render a list of transcript summaries as a Rich table.
+
+    Displays transcript metadata including ID, date, panel models,
+    synthesizer, token count, and query preview. Color-codes model
+    aliases using the standard model color scheme.
+
+    Args:
+        transcripts: List of transcript summary dicts as returned by
+            ``list_transcripts()``. Each dict has keys: short_id, date,
+            panel, synthesizer, tokens, query.
+    """
+    if not transcripts:
+        console.print("[dim]No transcripts found.[/dim]")
+        return
+
+    table = Table(show_header=True, padding=(0, 1))
+    table.add_column("ID", style="bold")
+    table.add_column("Date")
+    table.add_column("Panel")
+    table.add_column("Synthesizer")
+    table.add_column("Tokens", justify="right")
+    table.add_column("Query", style="dim")
+
+    for t in transcripts:
+        # Color-code each panel alias.
+        panel_parts = [a.strip() for a in t["panel"].split(",") if a.strip()]
+        panel_str = ", ".join(_format_alias(a) for a in panel_parts)
+
+        # Color-code synthesizer, or em dash if empty.
+        synth = t["synthesizer"]
+        synth_str = _format_alias(synth) if synth else "\u2014"
+
+        # Format tokens with comma separator, or em dash if zero.
+        tokens = t["tokens"]
+        tokens_str = f"{tokens:,}" if tokens else "\u2014"
+
+        table.add_row(
+            t["short_id"],
+            t["date"],
+            panel_str,
+            synth_str,
+            tokens_str,
+            t["query"],
+        )
+
+    console.print()
+    console.print(table)
+    console.print()
 
 
 def render_config_test(
