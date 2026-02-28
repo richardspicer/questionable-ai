@@ -511,6 +511,7 @@ class TestReplayCommand:
             *,
             synthesizer: str | None = None,
             additional_rounds: int = 0,
+            ground_truth: str | None = None,
         ) -> DebateTranscript:
             return DebateTranscript(
                 query=source.query,

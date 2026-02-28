@@ -37,6 +37,29 @@ from mutual_dissent.types import RoutingDecision
 console = Console(stderr=True)
 
 
+def _resolve_ground_truth(
+    ground_truth: str | None,
+    ground_truth_file: str | None,
+) -> str | None:
+    """Resolve ground-truth text from inline or file source.
+
+    Args:
+        ground_truth: Inline reference answer text.
+        ground_truth_file: Path to file containing reference answer.
+
+    Returns:
+        Resolved ground-truth string, or None if neither provided.
+
+    Raises:
+        click.UsageError: If both sources are provided.
+    """
+    if ground_truth and ground_truth_file:
+        raise click.UsageError("Cannot use both --ground-truth and --ground-truth-file. Pick one.")
+    if ground_truth_file:
+        return Path(ground_truth_file).read_text(encoding="utf-8").strip()
+    return ground_truth
+
+
 def _emit_output(
     transcript: DebateTranscript,
     *,
@@ -141,6 +164,17 @@ def main() -> None:
     default=None,
     help="Write output to FILE instead of stdout.",
 )
+@click.option(
+    "--ground-truth",
+    default=None,
+    help="Reference answer to score synthesis against (adds 1 API call).",
+)
+@click.option(
+    "--ground-truth-file",
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    default=None,
+    help="File containing reference answer for scoring.",
+)
 def ask(
     query: str,
     panel: str | None,
@@ -150,6 +184,8 @@ def ask(
     no_save: bool,
     output: str,
     output_file: str | None,
+    ground_truth: str | None,
+    ground_truth_file: str | None,
 ) -> None:
     """Send a query to the debate panel.
 
@@ -165,6 +201,8 @@ def ask(
         no_save: Skip transcript saving.
         output: Output format choice.
         output_file: Path to write output to.
+        ground_truth: Inline reference answer for scoring.
+        ground_truth_file: Path to file containing reference answer.
     """
     config = load_config()
 
@@ -180,6 +218,9 @@ def ask(
     # Parse panel if provided.
     panel_list = panel.split(",") if panel else None
 
+    # Resolve ground truth.
+    resolved_gt = _resolve_ground_truth(ground_truth, ground_truth_file)
+
     # Run the debate.
     try:
         transcript = asyncio.run(
@@ -189,6 +230,7 @@ def ask(
                 panel=panel_list,
                 synthesizer=synthesizer,
                 rounds=rounds,
+                ground_truth=resolved_gt,
             )
         )
     except Exception as exc:
@@ -317,6 +359,17 @@ def show(transcript_id: str, verbose: bool, output: str, output_file: str | None
     default=None,
     help="Write output to FILE instead of stdout.",
 )
+@click.option(
+    "--ground-truth",
+    default=None,
+    help="Reference answer to score synthesis against (adds 1 API call).",
+)
+@click.option(
+    "--ground-truth-file",
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    default=None,
+    help="File containing reference answer for scoring.",
+)
 def replay(
     transcript_id: str,
     synthesizer: str | None,
@@ -325,6 +378,8 @@ def replay(
     no_save: bool,
     output: str,
     output_file: str | None,
+    ground_truth: str | None,
+    ground_truth_file: str | None,
 ) -> None:
     """Re-synthesize or extend an existing debate transcript.
 
@@ -341,6 +396,8 @@ def replay(
         no_save: Skip saving replay transcript.
         output: Output format choice.
         output_file: Path to write output to.
+        ground_truth: Inline reference answer for scoring.
+        ground_truth_file: Path to file containing reference answer.
     """
     # Validate transcript ID length (cheap check first).
     if len(transcript_id) < 4:
@@ -371,6 +428,9 @@ def replay(
         )
         sys.exit(1)
 
+    # Resolve ground truth.
+    resolved_gt = _resolve_ground_truth(ground_truth, ground_truth_file)
+
     # Run replay.
     try:
         transcript = asyncio.run(
@@ -379,6 +439,7 @@ def replay(
                 config,
                 synthesizer=synthesizer,
                 additional_rounds=rounds,
+                ground_truth=resolved_gt,
             )
         )
     except Exception as exc:

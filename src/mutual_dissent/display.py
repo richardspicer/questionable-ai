@@ -71,6 +71,7 @@ def render_debate(transcript: DebateTranscript, *, verbose: bool = False) -> Non
     else:
         console.print("[red]No synthesis available.[/red]")
 
+    _render_score(transcript)
     _render_metadata(transcript)
 
 
@@ -184,6 +185,40 @@ def _render_metadata(transcript: DebateTranscript) -> None:
     console.print()
 
 
+def _render_score(transcript: DebateTranscript) -> None:
+    """Render ground-truth score as a compact summary table.
+
+    Args:
+        transcript: Transcript with scoring data in synthesis.analysis.
+    """
+    if not transcript.synthesis:
+        return
+    score_data = transcript.synthesis.analysis.get("ground_truth_score")
+    if not score_data:
+        return
+    if score_data.get("accuracy", -1) < 0:
+        console.print("\n[dim]Score: Judge output could not be parsed[/dim]")
+        return
+
+    console.print()
+    console.rule("[bold]Score[/bold]")
+    console.print()
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("key", style="dim")
+    table.add_column("value")
+
+    table.add_row("Accuracy", f"{score_data['accuracy']}/5")
+    table.add_row("Completeness", f"{score_data['completeness']}/5")
+    table.add_row("Overall", f"{score_data['overall']}/5")
+
+    console.print(table)
+
+    explanation = score_data.get("explanation", "")
+    if explanation:
+        console.print(f"\n[dim]{explanation}[/dim]")
+
+
 def _format_timing(resp: ModelResponse) -> str:
     """Format latency and token count for display.
 
@@ -258,6 +293,7 @@ def format_markdown(transcript: DebateTranscript, *, verbose: bool = False) -> s
             lines.append("")
 
     lines.extend(_format_synthesis_markdown(transcript))
+    lines.extend(_format_score_markdown(transcript))
     lines.append("")
     lines.extend(_format_metadata_markdown(transcript))
     lines.append("")
@@ -341,6 +377,36 @@ def _format_synthesis_markdown(transcript: DebateTranscript) -> list[str]:
         lines.append(f"**Error:** {synth.error}")
     else:
         lines.append(synth.content)
+
+    return lines
+
+
+def _format_score_markdown(transcript: DebateTranscript) -> list[str]:
+    """Format ground-truth score as Markdown lines.
+
+    Args:
+        transcript: Transcript with scoring data in synthesis.analysis.
+
+    Returns:
+        List of Markdown lines for the score section, or empty list.
+    """
+    if not transcript.synthesis:
+        return []
+    score_data = transcript.synthesis.analysis.get("ground_truth_score")
+    if not score_data:
+        return []
+    if score_data.get("accuracy", -1) < 0:
+        return ["", "## Score", "", "*Judge output could not be parsed.*"]
+
+    lines: list[str] = ["", "## Score", ""]
+    lines.append(f"**Accuracy:** {score_data['accuracy']}/5")
+    lines.append(f"**Completeness:** {score_data['completeness']}/5")
+    lines.append(f"**Overall:** {score_data['overall']}/5")
+
+    explanation = score_data.get("explanation", "")
+    if explanation:
+        lines.append("")
+        lines.append(explanation)
 
     return lines
 

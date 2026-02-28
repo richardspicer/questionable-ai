@@ -49,6 +49,30 @@ well-reasoned response. Note where the panel reached consensus and where \
 significant disagreements remain. Do not simply concatenate — produce a \
 coherent, unified answer."""
 
+SCORING_PROMPT = """\
+You are evaluating the quality of an AI-generated answer against a known \
+correct reference answer.
+
+Original query: {query}
+
+Reference answer (ground truth):
+{ground_truth}
+
+Response to evaluate:
+{synthesis}
+
+Score the response on two dimensions, each from 1 to 5:
+
+- **Accuracy** (1-5): How factually correct is the response compared to the \
+reference? 5 = fully correct, 1 = fundamentally wrong.
+- **Completeness** (1-5): How much of the reference answer's key information \
+does the response cover? 5 = covers everything, 1 = misses almost all points.
+
+Respond in EXACTLY this format (no other text):
+ACCURACY: <score>
+COMPLETENESS: <score>
+EXPLANATION: <1-3 sentence explanation of the scores>"""
+
 
 def format_initial(query: str) -> str:
     """Format the initial round prompt.
@@ -102,6 +126,35 @@ def format_synthesis(
     return SYNTHESIS_PROMPT.format(
         query=query,
         formatted_transcript=formatted_transcript,
+    )
+
+
+def format_scoring(
+    query: str,
+    ground_truth: str,
+    synthesis: str,
+) -> str:
+    """Format the scoring prompt for ground-truth evaluation.
+
+    Sends the synthesis and ground-truth reference to a judge model
+    for accuracy and completeness scoring.
+
+    Note: v1 uses the synthesizer as judge, which creates self-evaluation
+    bias. Acceptable for initial measurement; a separate --judge flag is
+    a future enhancement.
+
+    Args:
+        query: The user's original question.
+        ground_truth: Known-correct reference answer.
+        synthesis: The synthesized answer to evaluate.
+
+    Returns:
+        Formatted prompt string for the scoring step.
+    """
+    return SCORING_PROMPT.format(
+        query=query,
+        ground_truth=ground_truth,
+        synthesis=synthesis,
     )
 
 

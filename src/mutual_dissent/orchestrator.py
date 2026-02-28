@@ -30,6 +30,7 @@ from mutual_dissent.prompts import (
     format_transcript_for_synthesis,
 )
 from mutual_dissent.providers.router import ProviderRouter
+from mutual_dissent.scoring import score_synthesis
 
 
 async def run_debate(
@@ -39,6 +40,7 @@ async def run_debate(
     panel: list[str] | None = None,
     synthesizer: str | None = None,
     rounds: int | None = None,
+    ground_truth: str | None = None,
 ) -> DebateTranscript:
     """Execute a full multi-model debate.
 
@@ -54,6 +56,8 @@ async def run_debate(
             config.default_synthesizer.
         rounds: Number of reflection rounds (1-3). Defaults to
             config.default_rounds.
+        ground_truth: Known-correct reference answer for scoring. If provided,
+            synthesis is scored against this after completion.
 
     Returns:
         Complete DebateTranscript with all rounds and synthesis.
@@ -107,6 +111,18 @@ async def run_debate(
         synthesis.role = "synthesis"
         transcript.synthesis = synthesis
 
+        # --- Scoring ---
+        if ground_truth and not synthesis.error:
+            score = await score_synthesis(
+                router, query, synthesis.content, ground_truth, synth_alias
+            )
+            synthesis.analysis["ground_truth_score"] = score.to_dict()
+            transcript.metadata["scores"] = {
+                "ground_truth": ground_truth,
+                "judge_model": synth_alias,
+                "synthesis_score": score.to_dict(),
+            }
+
     # --- Metadata: resolved_config ---
     transcript.metadata["resolved_config"] = {
         "panel": list(panel_aliases),
@@ -128,6 +144,7 @@ async def run_replay(
     *,
     synthesizer: str | None = None,
     additional_rounds: int = 0,
+    ground_truth: str | None = None,
 ) -> DebateTranscript:
     """Re-synthesize (and optionally extend) an existing debate transcript.
 
@@ -146,6 +163,7 @@ async def run_replay(
             source transcript's synthesizer.
         additional_rounds: Number of new reflection rounds to add before
             synthesis. Defaults to 0 (re-synthesize only).
+        ground_truth: Known-correct reference answer for scoring.
 
     Returns:
         New DebateTranscript with fresh ID and metadata linking to source.
@@ -196,6 +214,18 @@ async def run_replay(
         synthesis = await _run_synthesis(router, source.query, synth_alias, transcript)
         synthesis.role = "synthesis"
         transcript.synthesis = synthesis
+
+        # --- Scoring ---
+        if ground_truth and not synthesis.error:
+            score = await score_synthesis(
+                router, source.query, synthesis.content, ground_truth, synth_alias
+            )
+            synthesis.analysis["ground_truth_score"] = score.to_dict()
+            transcript.metadata["scores"] = {
+                "ground_truth": ground_truth,
+                "judge_model": synth_alias,
+                "synthesis_score": score.to_dict(),
+            }
 
     # --- Metadata ---
     transcript.metadata["source_transcript_id"] = source.transcript_id
