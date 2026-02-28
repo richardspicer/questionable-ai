@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "mutual-dissent"
 version = "0.1.0"
 description = "Cross-vendor multi-model debate and consensus engine for AI response distillation"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 license = "MIT"
 readme = "README.md"
 authors = [
@@ -45,7 +45,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -70,7 +70,7 @@ max-complexity = 15
 "tests/*" = ["S"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
