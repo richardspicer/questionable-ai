@@ -234,10 +234,12 @@ def _mock_models_response() -> httpx.Response:
             {
                 "id": "anthropic/claude-sonnet-4.5",
                 "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                "context_length": 200000,
             },
             {
                 "id": "openai/gpt-5.2",
                 "pricing": {"prompt": "0.000005", "completion": "0.000010"},
+                "context_length": 128000,
             },
         ]
     }
@@ -665,6 +667,94 @@ class TestAnthropicTokenSplit:
         assert result.token_count == 120  # 80 + 40
         assert result.input_tokens == 80
         assert result.output_tokens == 40
+
+
+# ---------------------------------------------------------------------------
+# Context length
+# ---------------------------------------------------------------------------
+
+
+class TestContextLength:
+    """ModelPricing.context_length field and PricingCache.get_context_length()."""
+
+    def test_model_pricing_context_length_default(self) -> None:
+        """context_length defaults to None."""
+        pricing = ModelPricing(prompt_price=0.001, completion_price=0.002)
+        assert pricing.context_length is None
+
+    def test_model_pricing_context_length_set(self) -> None:
+        """context_length can be set explicitly."""
+        pricing = ModelPricing(prompt_price=0.001, completion_price=0.002, context_length=200000)
+        assert pricing.context_length == 200000
+
+    def test_parse_pricing_response_captures_context_length(self) -> None:
+        """_parse_pricing_response captures context_length from API data."""
+        data = {
+            "data": [
+                {
+                    "id": "anthropic/claude-sonnet-4.5",
+                    "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                    "context_length": 200000,
+                },
+            ]
+        }
+        result = _parse_pricing_response(data)
+        assert result["anthropic/claude-sonnet-4.5"].context_length == 200000
+
+    def test_parse_pricing_response_missing_context_length(self) -> None:
+        """context_length is None when missing from API response."""
+        data = {
+            "data": [
+                {
+                    "id": "anthropic/claude-sonnet-4.5",
+                    "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                },
+            ]
+        }
+        result = _parse_pricing_response(data)
+        assert result["anthropic/claude-sonnet-4.5"].context_length is None
+
+    @pytest.mark.asyncio
+    async def test_get_context_length(self) -> None:
+        """get_context_length returns context_length for a known model."""
+        cache = PricingCache()
+        cache._cache = {
+            "anthropic/claude-sonnet-4.5": ModelPricing(
+                prompt_price=0.000003,
+                completion_price=0.000015,
+                context_length=200000,
+            ),
+        }
+        ctx_len = await cache.get_context_length("anthropic/claude-sonnet-4.5")
+        assert ctx_len == 200000
+
+    @pytest.mark.asyncio
+    async def test_get_context_length_unknown_model(self) -> None:
+        """get_context_length returns None for unknown model."""
+        cache = PricingCache()
+        cache._cache = {}
+        ctx_len = await cache.get_context_length("unknown/model")
+        assert ctx_len is None
+
+    @pytest.mark.asyncio
+    async def test_get_context_length_direct_id(self) -> None:
+        """get_context_length resolves vendor-native model IDs via alias map."""
+        alias_map = {
+            "claude": {
+                "openrouter": "anthropic/claude-sonnet-4.5",
+                "direct": "claude-sonnet-4-5-20250929",
+            },
+        }
+        cache = PricingCache(alias_map=alias_map)
+        cache._cache = {
+            "anthropic/claude-sonnet-4.5": ModelPricing(
+                prompt_price=0.000003,
+                completion_price=0.000015,
+                context_length=200000,
+            ),
+        }
+        ctx_len = await cache.get_context_length("claude-sonnet-4-5-20250929")
+        assert ctx_len == 200000
 
 
 # ---------------------------------------------------------------------------

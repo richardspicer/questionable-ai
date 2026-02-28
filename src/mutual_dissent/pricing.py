@@ -31,15 +31,17 @@ FETCH_TIMEOUT = 15.0  # seconds — generous but bounded
 
 @dataclass
 class ModelPricing:
-    """Per-token pricing for a model.
+    """Per-token pricing and context metadata for a model.
 
     Attributes:
         prompt_price: USD per token for input/prompt tokens.
         completion_price: USD per token for output/completion tokens.
+        context_length: Maximum context window in tokens, or None if unknown.
     """
 
     prompt_price: float
     completion_price: float
+    context_length: int | None = None
 
 
 class PricingCache:
@@ -111,6 +113,20 @@ class PricingCache:
 
         return None
 
+    async def get_context_length(self, model_id: str) -> int | None:
+        """Get maximum context length for a model.
+
+        Args:
+            model_id: Model ID — OpenRouter or vendor-native format.
+
+        Returns:
+            Context length in tokens, or None if unknown.
+        """
+        pricing = await self.get_pricing(model_id)
+        if pricing is None:
+            return None
+        return pricing.context_length
+
     async def _fetch_all(self) -> None:
         """Fetch all model pricing from OpenRouter.
 
@@ -163,11 +179,13 @@ def _parse_pricing_response(data: dict[str, Any]) -> dict[str, ModelPricing]:
         try:
             prompt_str = pricing.get("prompt", "0")
             completion_str = pricing.get("completion", "0")
+            ctx_len = model.get("context_length")
             result[model_id] = ModelPricing(
                 prompt_price=float(prompt_str),
                 completion_price=float(completion_str),
+                context_length=int(ctx_len) if ctx_len is not None else None,
             )
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
     return result
 
