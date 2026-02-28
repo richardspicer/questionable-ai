@@ -122,6 +122,92 @@ async def run_debate(
     return transcript
 
 
+async def run_replay(
+    source: DebateTranscript,
+    config: Config,
+    *,
+    synthesizer: str | None = None,
+    additional_rounds: int = 0,
+) -> DebateTranscript:
+    """Re-synthesize (and optionally extend) an existing debate transcript.
+
+    Produces a NEW transcript — the source is never mutated. Two modes:
+
+    - **Re-synthesize only** (additional_rounds=0): Copies source rounds,
+      runs synthesis with the specified (or original) synthesizer.
+    - **Add rounds** (additional_rounds>0): Copies source rounds, runs N
+      additional reflection rounds continuing from where the source left
+      off, then synthesizes.
+
+    Args:
+        source: The original debate transcript to replay.
+        config: Loaded application configuration.
+        synthesizer: Model alias override for synthesis. Defaults to the
+            source transcript's synthesizer.
+        additional_rounds: Number of new reflection rounds to add before
+            synthesis. Defaults to 0 (re-synthesize only).
+
+    Returns:
+        New DebateTranscript with fresh ID and metadata linking to source.
+
+    Raises:
+        ValueError: If additional_rounds is negative.
+    """
+    if additional_rounds < 0:
+        raise ValueError(f"additional_rounds must be >= 0, got {additional_rounds}")
+
+    synth_alias = synthesizer or source.synthesizer_id
+
+    # Copy source rounds (new list, same DebateRound objects — they're not mutated).
+    rounds = list(source.rounds)
+
+    transcript = DebateTranscript(
+        query=source.query,
+        panel=list(source.panel),
+        synthesizer_id=synth_alias,
+        max_rounds=source.max_rounds + additional_rounds,
+        rounds=rounds,
+        metadata={"version": __version__},
+    )
+
+    async with ProviderRouter(config) as router:
+        # --- Additional reflection rounds ---
+        if additional_rounds > 0:
+            prev_responses = source.rounds[-1].responses
+
+            round_offset = len(source.rounds)
+            for i in range(additional_rounds):
+                round_num = round_offset + i
+                reflection_responses = await _run_reflection_round(
+                    router, source.query, source.panel, prev_responses, round_num
+                )
+                for r in reflection_responses:
+                    r.role = "reflection"
+                transcript.rounds.append(
+                    DebateRound(
+                        round_number=round_num,
+                        round_type="reflection",
+                        responses=reflection_responses,
+                    )
+                )
+                prev_responses = reflection_responses
+
+        # --- Synthesis ---
+        synthesis = await _run_synthesis(router, source.query, synth_alias, transcript)
+        synthesis.role = "synthesis"
+        transcript.synthesis = synthesis
+
+    # --- Metadata ---
+    transcript.metadata["source_transcript_id"] = source.transcript_id
+    transcript.metadata["replay_config"] = {
+        "synthesizer_override": synthesizer,
+        "additional_rounds": additional_rounds,
+    }
+    transcript.metadata["stats"] = _compute_stats(transcript)
+
+    return transcript
+
+
 async def _run_initial_round(
     router: ProviderRouter,
     query: str,
