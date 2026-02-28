@@ -21,7 +21,7 @@ import click
 from rich.console import Console
 
 from mutual_dissent import __version__
-from mutual_dissent.config import Config, load_config
+from mutual_dissent.config import CONFIG_PATH, Config, load_config
 from mutual_dissent.display import (
     format_markdown,
     render_config_test,
@@ -457,6 +457,12 @@ def replay(
 @main.group()
 def config() -> None:
     """Manage configuration."""
+
+
+@config.command()
+def path() -> None:
+    """Print the configuration file path."""
+    click.echo(CONFIG_PATH)
 
 
 async def _run_config_test(

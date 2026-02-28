@@ -294,3 +294,25 @@ class TestRenderConfigTestError:
         assert "grok" in output
         assert "connection error" in output
         assert "1.2s" in output
+
+
+# ---------------------------------------------------------------------------
+# config path subcommand
+# ---------------------------------------------------------------------------
+
+
+class TestConfigPath:
+    """config path subcommand."""
+
+    def test_config_path_shows_in_help(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(main, ["config", "--help"])
+        assert result.exit_code == 0
+        assert "path" in result.output
+
+    def test_config_path_prints_path(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(main, ["config", "path"])
+        assert result.exit_code == 0
+        assert ".mutual-dissent" in result.output
+        assert "config.toml" in result.output
