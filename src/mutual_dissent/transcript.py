@@ -11,10 +11,12 @@ Example: 2026-02-21_a1b2c3d4.json
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from mutual_dissent.config import TRANSCRIPT_DIR, ensure_dirs
-from mutual_dissent.models import DebateTranscript
+from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
 
 
 def save_transcript(transcript: DebateTranscript) -> Path:
@@ -131,21 +133,80 @@ def _find_transcript_files(transcript_id: str) -> list[Path]:
     return matches
 
 
-def _parse_transcript_file(filepath: Path) -> DebateTranscript:
-    """Parse a JSON file into a DebateTranscript.
+def _parse_datetime(value: str) -> datetime:
+    """Parse an ISO 8601 timestamp string to a datetime.
 
-    This is a minimal reconstruction — enough for replay and display.
-    Does not fully reconstruct nested dataclass instances; returns a
-    transcript with raw data accessible via to_dict() on the original.
+    Args:
+        value: ISO 8601 formatted timestamp string.
+
+    Returns:
+        Parsed datetime object. Falls back to current UTC time if parsing
+        fails or the value is empty.
+    """
+    if not value:
+        return datetime.now(UTC)
+    try:
+        return datetime.fromisoformat(value)
+    except (ValueError, TypeError):
+        return datetime.now(UTC)
+
+
+def _parse_response(data: dict[str, Any]) -> ModelResponse:
+    """Parse a dictionary into a ModelResponse dataclass.
+
+    Handles missing optional fields gracefully for old transcripts
+    that predate the role/routing/analysis additions.
+
+    Args:
+        data: Dictionary matching the ModelResponse.to_dict() format.
+
+    Returns:
+        Fully populated ModelResponse instance.
+    """
+    return ModelResponse(
+        model_id=data["model_id"],
+        model_alias=data["model_alias"],
+        round_number=data["round_number"],
+        content=data["content"],
+        timestamp=_parse_datetime(data.get("timestamp", "")),
+        token_count=data.get("token_count"),
+        latency_ms=data.get("latency_ms"),
+        error=data.get("error"),
+        role=data.get("role", ""),
+        routing=data.get("routing"),
+        analysis=data.get("analysis", {}),
+    )
+
+
+def _parse_transcript_file(filepath: Path) -> DebateTranscript:
+    """Parse a JSON file into a fully deserialized DebateTranscript.
+
+    Reconstructs all nested dataclass instances including rounds,
+    responses, and synthesis. Handles backward compatibility with
+    older transcripts that may lack newer fields.
 
     Args:
         filepath: Path to the transcript JSON file.
 
     Returns:
-        DebateTranscript populated from the JSON data.
+        DebateTranscript with fully populated rounds and synthesis.
     """
     with open(filepath, encoding="utf-8") as f:
         data = json.load(f)
+
+    rounds: list[DebateRound] = []
+    for round_data in data.get("rounds", []):
+        responses = [_parse_response(r) for r in round_data.get("responses", [])]
+        rounds.append(
+            DebateRound(
+                round_number=round_data["round_number"],
+                round_type=round_data["round_type"],
+                responses=responses,
+            )
+        )
+
+    synthesis_data = data.get("synthesis")
+    synthesis = _parse_response(synthesis_data) if synthesis_data else None
 
     transcript = DebateTranscript(
         transcript_id=data["transcript_id"],
@@ -153,10 +214,11 @@ def _parse_transcript_file(filepath: Path) -> DebateTranscript:
         panel=data["panel"],
         synthesizer_id=data["synthesizer_id"],
         max_rounds=data["max_rounds"],
+        rounds=rounds,
+        synthesis=synthesis,
+        created_at=_parse_datetime(data.get("created_at", "")),
         metadata=data.get("metadata", {}),
     )
-    # Note: rounds and synthesis are left as empty/None for now.
-    # Full deserialization will be added when replay is implemented (Phase 2).
     return transcript
 
 
