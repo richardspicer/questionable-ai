@@ -1,0 +1,28 @@
+---
+title: Introduction
+description: Cross-vendor multi-model debate and consensus engine for AI response distillation
+---
+
+# Mutual Dissent
+
+Cross-vendor multi-model debate engine that sends queries to multiple AI models simultaneously, shares competing responses for reflection and critique, then synthesizes a final answer.
+
+## What it does
+
+- **Fan-out** — sends your query to multiple models (Claude, GPT, Gemini, Grok) in parallel
+- **Reflection** — shares competing responses back to each model for critique
+- **Synthesis** — a user-selected model distills the debate into a final answer
+- **Transcripts** — full debate logs as structured JSON for research and analysis
+
+## Quick start
+
+```bash
+pip install mutual-dissent
+mutual-dissent ask "Your query here" --panel claude,gpt,gemini --synthesizer claude
+```
+
+## Links
+
+- [GitHub](https://github.com/q-uestionable-ai/mutual-dissent)
+- [Blog](https://richardspicer.io/blog)
+- [Research](https://mlsecopslab.io/research)
