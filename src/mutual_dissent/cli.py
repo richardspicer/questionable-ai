@@ -455,6 +455,26 @@ def replay(
     _emit_output(transcript, output=output, output_file=output_file, verbose=verbose)
 
 
+@main.command()
+@click.option("--port", type=click.IntRange(1, 65535), default=8080, help="Port to bind to.")
+@click.option("--host", default="127.0.0.1", help="Host to bind to.")
+@click.option("--no-open", is_flag=True, default=False, help="Don't open browser automatically.")
+def serve(port: int, host: str, no_open: bool) -> None:
+    """Start the web UI server.
+
+    Imports and starts the NiceGUI application. This call blocks until
+    the server is stopped.
+
+    Args:
+        port: Port number to bind to.
+        host: Host address to bind to.
+        no_open: If True, suppresses automatic browser launch.
+    """
+    from mutual_dissent.web.app import create_app
+
+    create_app(host=host, port=port, show=not no_open)
+
+
 @main.group()
 def config() -> None:
     """Manage configuration."""

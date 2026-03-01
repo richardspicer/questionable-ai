@@ -1,0 +1,150 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: true
+tone_instructions: >-
+  Concise, direct, security-aware. Flag API key exposure, unsafe
+  deserialization, and prompt injection vectors. No fluff.
+
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+  review_status: true
+  commit_status: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  suggested_reviewers: false
+  auto_apply_labels: false
+  enable_prompt_for_ai_agents: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+
+  path_filters:
+    - "!**/__pycache__/**"
+    - "!**/.mypy_cache/**"
+    - "!**/.ruff_cache/**"
+    - "!**/.pytest_cache/**"
+    - "!**/uv.lock"
+
+  path_instructions:
+    - path: "src/mutual_dissent/providers/**"
+      instructions: >-
+        Provider abstraction layer. Verify: API keys never logged or
+        serialized to transcripts. Check error handling preserves
+        provider-agnostic interface. Ensure OpenRouter and direct-vendor
+        paths are tested. Flag any hardcoded model IDs — these should
+        come from config.
+    - path: "src/mutual_dissent/orchestrator.py"
+      instructions: >-
+        Core debate orchestration. Verify: round progression logic,
+        proper fan-out/reflection/synthesis pipeline ordering. Check
+        that callbacks (on_round_complete) are invoked correctly.
+        Flag any blocking calls that should be async.
+    - path: "src/mutual_dissent/transcript.py"
+      instructions: >-
+        Transcript persistence. Verify: no API keys or secrets in
+        serialized output. Check file path handling is cross-platform
+        (pathlib). Validate JSON schema consistency.
+    - path: "src/mutual_dissent/web/**"
+      instructions: >-
+        NiceGUI web interface. Check for XSS vectors in user-supplied
+        content rendering. Verify no eval() or unsafe f-string
+        construction (CVE-2026-27156). Ensure UI updates use NiceGUI's
+        server-push pattern, not polling.
+    - path: "src/mutual_dissent/config.py"
+      instructions: >-
+        Configuration handling. Verify: API keys loaded from env vars
+        or TOML, never hardcoded. Check TOML parsing preserves comments
+        (tomlkit). Validate default values are sensible.
+    - path: "tests/**"
+      instructions: >-
+        Test suite. Verify: no real API calls (mock providers). Check
+        cross-platform compatibility (no shell=True with Unix commands).
+        Ensure fixtures don't contain real API keys.
+    - path: ".github/workflows/**"
+      instructions: >-
+        CI/CD workflows. Check: secrets not exposed in logs, matrix
+        includes both ubuntu-latest and windows-latest, pinned action
+        versions use SHA not tags.
+
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+  tools:
+    ruff:
+      enabled: true
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
+    actionlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 120000
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+  learnings:
+    scope: "local"
+  issues:
+    scope: "local"
+  pull_requests:
+    scope: "local"
+  web_search:
+    enabled: true
+  linked_repositories:
+    - repository: "q-uestionable-ai/counteragent"
+      instructions: >-
+        MCP security vulnerability scanner. Shares core evidence models
+        and OWASP mapping patterns. CounterAgent discovers vulnerabilities
+        that CounterSignal generates payloads for.
+    # Uncomment once CounterSignal repo exists on GitHub:
+    # - repository: "q-uestionable-ai/countersignal"
+    #   instructions: >-
+    #     Adversarial payload generator. RXP (RAG poisoning optimizer)
+    #     integration planned — poisoned documents feed into Mutual
+    #     Dissent vector stores for consensus poisoning research.
+
+code_generation:
+  docstrings:
+    language: "en-US"
+    path_instructions:
+      - path: "**/*.py"
+        instructions: >-
+          Use Google-style docstrings. Include Args, Returns, and Raises
+          sections. Keep descriptions concise — one line for simple
+          functions, brief paragraph for complex ones.
+  unit_tests:
+    path_instructions:
+      - path: "src/**/*.py"
+        instructions: >-
+          Use pytest with pytest-asyncio for async tests. Mock all
+          external API calls. Use fixtures from conftest.py. Tests
+          must pass on both Windows and Linux.
