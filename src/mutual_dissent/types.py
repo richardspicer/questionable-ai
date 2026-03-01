@@ -47,6 +47,8 @@ class RoutedRequest:
         model_alias: Human-readable short name (e.g. "claude").
         round_number: Debate round (0=initial, 1+=reflection, -1=synthesis).
         messages: Chat messages in OpenAI-compatible format.
+        context: Optional per-panelist pre-prompt content injected before
+            the user query. Used for RAG augmentation and experiment payloads.
     """
 
     vendor: Vendor
@@ -54,6 +56,7 @@ class RoutedRequest:
     model_alias: str
     round_number: int
     messages: list[dict[str, Any]]
+    context: str | None = None
 
 
 @dataclass

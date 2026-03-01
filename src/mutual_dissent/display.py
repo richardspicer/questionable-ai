@@ -19,7 +19,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
+from mutual_dissent.models import DebateRound, DebateTranscript, ExperimentMetadata, ModelResponse
 from mutual_dissent.types import RoutingDecision
 
 console = Console()
@@ -185,6 +185,11 @@ def _render_metadata(transcript: DebateTranscript) -> None:
     cost_str = _format_cost_summary(transcript)
     if cost_str:
         table.add_row("Cost", cost_str)
+
+    # Experiment metadata if present.
+    experiment = transcript.metadata.get("experiment")
+    if isinstance(experiment, ExperimentMetadata):
+        table.add_row("Experiment", f"{experiment.experiment_id} ({experiment.source_tool})")
 
     console.print(table)
     console.print()
@@ -480,6 +485,11 @@ def _format_metadata_markdown(transcript: DebateTranscript) -> list[str]:
     cost_str = _format_cost_summary(transcript)
     if cost_str:
         lines.append(f"**Cost:** {cost_str}")
+
+    # Experiment metadata if present.
+    experiment = transcript.metadata.get("experiment")
+    if isinstance(experiment, ExperimentMetadata):
+        lines.append(f"**Experiment:** {experiment.experiment_id} ({experiment.source_tool})")
 
     date_str = transcript.created_at.strftime("%Y-%m-%d %H:%M UTC")
     lines.append(f"**Date:** {date_str}")

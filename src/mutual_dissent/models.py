@@ -25,6 +25,65 @@ from typing import Any
 
 
 @dataclass
+class ExperimentMetadata:
+    """Metadata linking a debate to a research experiment.
+
+    Serializes into ``DebateTranscript.metadata["experiment"]`` to track
+    cross-tool research runs (CounterSignal, CounterAgent, manual).
+
+    Attributes:
+        experiment_id: Groups related debate runs under one experiment.
+        source_tool: Originating tool — "countersignal", "counteragent",
+            or "manual".
+        campaign_id: Optional link to an external campaign or scan ID.
+        condition: Description of the experimental variable being tested.
+        variables: Key-value pairs of parameter values for this run.
+        finding_ref: Reference code for a research finding (e.g. "MD-003").
+    """
+
+    experiment_id: str
+    source_tool: str = "manual"
+    campaign_id: str | None = None
+    condition: str = ""
+    variables: dict[str, Any] = field(default_factory=dict)
+    finding_ref: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-compatible dictionary.
+
+        Returns:
+            Dictionary with all fields suitable for JSON storage.
+        """
+        return {
+            "experiment_id": self.experiment_id,
+            "source_tool": self.source_tool,
+            "campaign_id": self.campaign_id,
+            "condition": self.condition,
+            "variables": self.variables,
+            "finding_ref": self.finding_ref,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ExperimentMetadata:
+        """Deserialize from a JSON-compatible dictionary.
+
+        Args:
+            data: Dictionary with ExperimentMetadata fields.
+
+        Returns:
+            ExperimentMetadata instance.
+        """
+        return cls(
+            experiment_id=data["experiment_id"],
+            source_tool=data.get("source_tool", "manual"),
+            campaign_id=data.get("campaign_id"),
+            condition=data.get("condition", ""),
+            variables=data.get("variables", {}),
+            finding_ref=data.get("finding_ref"),
+        )
+
+
+@dataclass
 class ModelResponse:
     """Single response from one model in one round.
 
@@ -143,6 +202,12 @@ class DebateTranscript:
         Returns:
             Full transcript as a nested dictionary suitable for JSON output.
         """
+        # Serialize metadata values that have their own to_dict().
+        metadata = dict(self.metadata)
+        experiment = metadata.get("experiment")
+        if isinstance(experiment, ExperimentMetadata):
+            metadata["experiment"] = experiment.to_dict()
+
         return {
             "transcript_id": self.transcript_id,
             "query": self.query,
@@ -152,7 +217,7 @@ class DebateTranscript:
             "rounds": [r.to_dict() for r in self.rounds],
             "synthesis": self.synthesis.to_dict() if self.synthesis else None,
             "created_at": self.created_at.isoformat(),
-            "metadata": self.metadata,
+            "metadata": metadata,
         }
 
     @property

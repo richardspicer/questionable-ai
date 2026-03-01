@@ -70,7 +70,9 @@ Started via `mutual-dissent serve`. Calls the same Orchestrator as the CLI.
 
 **Orchestrator** — Core engine. Manages the debate lifecycle: initial fan-out,
 round tracking, reflection injection, and synthesis invocation. Provider-agnostic
-— calls the Provider Router, not any specific API client.
+— calls the Provider Router, not any specific API client. Supports optional
+per-panelist context injection (`panelist_context`) and round-level event hooks
+(`on_round_complete`) for research integration.
 
 **Provider Router** — Dispatch layer between the Orchestrator and API providers.
 For each model in a request, resolves which provider handles the call based on
@@ -136,6 +138,7 @@ class RoutedRequest:
     model_alias: str
     round_number: int
     messages: list[dict[str, Any]]
+    context: str | None = None  # Per-panelist pre-prompt content
 
 
 @dataclass
@@ -330,6 +333,17 @@ from datetime import datetime
 
 
 @dataclass
+class ExperimentMetadata:
+    """Metadata linking a debate to a research experiment."""
+    experiment_id: str              # Groups related runs
+    source_tool: str = "manual"     # "countersignal" | "counteragent" | "manual"
+    campaign_id: str | None = None  # Links to external campaign/scan
+    condition: str = ""             # Experimental variable description
+    variables: dict = field(default_factory=dict)  # Parameter values
+    finding_ref: str | None = None  # e.g. "MD-003", "MCP-001"
+
+
+@dataclass
 class ModelResponse:
     """Single response from one model in one round."""
     model_id: str           # Provider-specific model identifier
@@ -372,6 +386,8 @@ class DebateTranscript:
     #   version: str
     #   resolved_config: dict       — full effective config snapshot
     #   providers_used: list[str]
+    #   panelist_context: dict      — alias → context string (if provided)
+    #   experiment: ExperimentMetadata — research experiment linkage (if provided)
     #   stats: dict                 — precomputed on write:
     #     total_tokens, per_model token counts (incl. input/output split),
     #     total_cost_usd (computed from OpenRouter pricing API),
@@ -425,6 +441,15 @@ class DebateTranscript:
   "metadata": {
     "version": "0.2.0",
     "providers_used": ["anthropic", "openrouter"],
+    "panelist_context": { "claude": "RAG context..." },
+    "experiment": {
+      "experiment_id": "exp-001",
+      "source_tool": "countersignal",
+      "campaign_id": "camp-42",
+      "condition": "rag-augmented",
+      "variables": { "context_size": 4096 },
+      "finding_ref": "MD-003"
+    },
     "resolved_config": { "..." },
     "stats": {
       "total_tokens": 4200,
@@ -709,35 +734,45 @@ security research portfolio (CounterSignal, CounterAgent). The following
 extension points enable research integration without modifying the core debate
 loop. See `Lab/Cross-Tool Research Directions.md` for the full research agenda.
 
-**Per-panelist context injection:**
-A `context` or `pre_prompt` field on `RoutedRequest` allows individual panelists
-to receive RAG context, system prompt overrides, or injected payload content
-without affecting other panelists. The Orchestrator passes this through
-transparently. Default: None (all panelists get the same query).
+**Per-panelist context injection (implemented):**
+`run_debate()` and `run_replay()` accept an optional `panelist_context: dict[str, str]`
+mapping model alias to context string. When provided, `_inject_context()` prepends
+the context to each panelist's prompt in every round (initial and reflection).
+Context persists across rounds — a RAG-augmented model stays RAG-augmented
+throughout the debate. `RoutedRequest.context` field establishes the interface
+contract. Stored in `transcript.metadata["panelist_context"]` for replay
+reconstruction. No CLI flags — programmatic interface for experiment runner,
+payload source, and Web UI consumers.
 
 Consumers: RXP retrieval-optimized documents, CounterAgent inject payloads,
 consensus poisoning pre-prompts for controlled experiments.
 
-**Round-level event hooks:**
-An `on_round_complete` callback or async event emitter on the Orchestrator fires
-after each round with the round's responses. Enables observation without
-modifying the core loop.
+**Round-level event hooks (implemented):**
+`run_debate()` and `run_replay()` accept an optional `on_round_complete` async
+callback (`Callable[[DebateRound], Awaitable[None]]`). Fires after each round
+completes (initial, each reflection, synthesis) with the completed `DebateRound`.
+Exceptions in the callback are caught and logged via `logger.exception()` — a
+misbehaving callback cannot abort the debate. Implemented in `_fire_round_hook()`.
 
 Consumers: Web UI live debate view, research instrumentation (degradation curve
 measurement, per-round compliance tracking), detection rule triggers.
 
-**Experiment metadata schema:**
-A structured `experiment` key in `DebateTranscript.metadata`:
+**Experiment metadata schema (implemented):**
+`ExperimentMetadata` dataclass in `models.py` with `to_dict()`/`from_dict()`.
+Stored in `DebateTranscript.metadata["experiment"]`. Serializes to/from JSON
+transcripts automatically — `DebateTranscript.to_dict()` converts the instance
+to a dict, `_parse_transcript_file()` reconstitutes it on load. Displayed in
+both Rich terminal and markdown output when present.
 
 ```python
-"experiment": {
-    "experiment_id": str,         # Groups related runs
-    "source_tool": str,           # "countersignal" | "counteragent" | "manual"
-    "campaign_id": str | None,    # Links to CounterSignal campaign or CounterAgent scan
-    "condition": str,             # Experimental variable description
-    "variables": dict,            # Parameter values for this run
-    "finding_ref": str | None,    # e.g. "MD-003", "MCP-001"
-}
+@dataclass
+class ExperimentMetadata:
+    experiment_id: str              # Groups related runs
+    source_tool: str = "manual"     # "countersignal" | "counteragent" | "manual"
+    campaign_id: str | None = None  # Links to CounterSignal campaign or CounterAgent scan
+    condition: str = ""             # Experimental variable description
+    variables: dict = field(default_factory=dict)  # Parameter values for this run
+    finding_ref: str | None = None  # e.g. "MD-003", "MCP-001"
 ```
 
 Makes transcripts self-describing and queryable across tools. The research
