@@ -7,6 +7,7 @@ tone_instructions: >-
 
 reviews:
   profile: "assertive"
+  request_changes_workflow: true
   high_level_summary: true
   high_level_summary_in_walkthrough: true
   poem: false
