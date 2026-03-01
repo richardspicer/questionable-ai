@@ -4,6 +4,8 @@ Defines page routing and server configuration. Started via the
 ``mutual-dissent serve`` CLI command.
 """
 
+from __future__ import annotations
+
 from nicegui import ui
 
 from mutual_dissent.web.layout import create_layout

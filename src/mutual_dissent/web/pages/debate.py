@@ -4,6 +4,8 @@ Renders a minimal placeholder for the debate interface. Full implementation
 in Brief 2.
 """
 
+from __future__ import annotations
+
 from nicegui import ui
 
 

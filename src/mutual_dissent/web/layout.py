@@ -5,6 +5,8 @@ Dark mode is set globally via ui.run(dark=True) in app.py; the layout
 provides a toggle for runtime switching.
 """
 
+from __future__ import annotations
+
 from nicegui import ui
 
 from mutual_dissent import __version__

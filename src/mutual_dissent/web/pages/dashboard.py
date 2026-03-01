@@ -4,6 +4,8 @@ Renders a minimal placeholder for the research dashboard. Full
 implementation in Brief 4.
 """
 
+from __future__ import annotations
+
 from nicegui import ui
 
 
