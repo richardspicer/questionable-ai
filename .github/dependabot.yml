@@ -1,7 +1,7 @@
-# Dependabot configuration for mutual-dissent
-# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
-version: 2
+# Dependabot configuration
+# Keeps GitHub Actions and Python dependencies up to date automatically.
 
+version: 2
 updates:
   # Python dependencies (pyproject.toml / uv.lock)
   - package-ecosystem: "pip"
@@ -21,12 +21,10 @@ updates:
         dependency-type: "development"
     open-pull-requests-limit: 10
 
-  # GitHub Actions (when CI workflows are added)
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
     commit-message:
       prefix: "ci"
-    open-pull-requests-limit: 5
