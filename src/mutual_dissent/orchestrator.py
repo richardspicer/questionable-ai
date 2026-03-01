@@ -17,6 +17,8 @@ Typical usage::
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from mutual_dissent import __version__
@@ -33,6 +35,10 @@ from mutual_dissent.prompts import (
 from mutual_dissent.providers.router import ProviderRouter
 from mutual_dissent.scoring import score_synthesis
 
+logger = logging.getLogger(__name__)
+
+OnRoundComplete = Callable[[DebateRound], Awaitable[None]] | None
+
 
 async def run_debate(
     query: str,
@@ -42,6 +48,8 @@ async def run_debate(
     synthesizer: str | None = None,
     rounds: int | None = None,
     ground_truth: str | None = None,
+    panelist_context: dict[str, str] | None = None,
+    on_round_complete: OnRoundComplete = None,
 ) -> DebateTranscript:
     """Execute a full multi-model debate.
 
@@ -59,6 +67,12 @@ async def run_debate(
             config.default_rounds.
         ground_truth: Known-correct reference answer for scoring. If provided,
             synthesis is scored against this after completion.
+        panelist_context: Mapping of model alias to context string. When
+            provided, the context is prepended to each panelist's prompt in
+            every round. Used for RAG augmentation and experiment payloads.
+        on_round_complete: Optional async callback invoked after each round
+            completes (initial, reflection, synthesis). Receives the completed
+            DebateRound. Exceptions are logged but do not abort the debate.
 
     Returns:
         Complete DebateTranscript with all rounds and synthesis.
@@ -88,34 +102,45 @@ async def run_debate(
         await pricing_cache.prefetch()
 
         # --- Initial round ---
-        initial_responses = await _run_initial_round(router, query, panel_aliases)
+        initial_responses = await _run_initial_round(
+            router, query, panel_aliases, panelist_context=panelist_context
+        )
         for r in initial_responses:
             r.role = "initial"
-        transcript.rounds.append(
-            DebateRound(round_number=0, round_type="initial", responses=initial_responses)
+        initial_round = DebateRound(
+            round_number=0, round_type="initial", responses=initial_responses
         )
+        transcript.rounds.append(initial_round)
+        await _fire_round_hook(on_round_complete, initial_round)
 
         # --- Reflection rounds ---
         prev_responses = initial_responses
         for round_num in range(1, num_rounds + 1):
             reflection_responses = await _run_reflection_round(
-                router, query, panel_aliases, prev_responses, round_num
+                router,
+                query,
+                panel_aliases,
+                prev_responses,
+                round_num,
+                panelist_context=panelist_context,
             )
             for r in reflection_responses:
                 r.role = "reflection"
-            transcript.rounds.append(
-                DebateRound(
-                    round_number=round_num,
-                    round_type="reflection",
-                    responses=reflection_responses,
-                )
+            reflection_round = DebateRound(
+                round_number=round_num,
+                round_type="reflection",
+                responses=reflection_responses,
             )
+            transcript.rounds.append(reflection_round)
+            await _fire_round_hook(on_round_complete, reflection_round)
             prev_responses = reflection_responses
 
         # --- Synthesis ---
         synthesis = await _run_synthesis(router, query, synth_alias, transcript)
         synthesis.role = "synthesis"
         transcript.synthesis = synthesis
+        synth_round = DebateRound(round_number=-1, round_type="synthesis", responses=[synthesis])
+        await _fire_round_hook(on_round_complete, synth_round)
 
         # --- Scoring ---
         if ground_truth and not synthesis.error:
@@ -128,6 +153,10 @@ async def run_debate(
                 "judge_model": synth_alias,
                 "synthesis_score": score.to_dict(),
             }
+
+    # --- Metadata: panelist_context ---
+    if panelist_context:
+        transcript.metadata["panelist_context"] = panelist_context
 
     # --- Metadata: resolved_config ---
     transcript.metadata["resolved_config"] = {
@@ -151,6 +180,8 @@ async def run_replay(
     synthesizer: str | None = None,
     additional_rounds: int = 0,
     ground_truth: str | None = None,
+    panelist_context: dict[str, str] | None = None,
+    on_round_complete: OnRoundComplete = None,
 ) -> DebateTranscript:
     """Re-synthesize (and optionally extend) an existing debate transcript.
 
@@ -170,6 +201,12 @@ async def run_replay(
         additional_rounds: Number of new reflection rounds to add before
             synthesis. Defaults to 0 (re-synthesize only).
         ground_truth: Known-correct reference answer for scoring.
+        panelist_context: Mapping of model alias to context string. When
+            provided, the context is prepended to each panelist's prompt in
+            new reflection rounds. Pass the source transcript's context to
+            preserve it, or omit for a clean replay.
+        on_round_complete: Optional async callback invoked after each new
+            round completes. Exceptions are logged but do not abort the replay.
 
     Returns:
         New DebateTranscript with fresh ID and metadata linking to source.
@@ -208,23 +245,30 @@ async def run_replay(
             for i in range(additional_rounds):
                 round_num = round_offset + i
                 reflection_responses = await _run_reflection_round(
-                    router, source.query, source.panel, prev_responses, round_num
+                    router,
+                    source.query,
+                    source.panel,
+                    prev_responses,
+                    round_num,
+                    panelist_context=panelist_context,
                 )
                 for r in reflection_responses:
                     r.role = "reflection"
-                transcript.rounds.append(
-                    DebateRound(
-                        round_number=round_num,
-                        round_type="reflection",
-                        responses=reflection_responses,
-                    )
+                reflection_round = DebateRound(
+                    round_number=round_num,
+                    round_type="reflection",
+                    responses=reflection_responses,
                 )
+                transcript.rounds.append(reflection_round)
+                await _fire_round_hook(on_round_complete, reflection_round)
                 prev_responses = reflection_responses
 
         # --- Synthesis ---
         synthesis = await _run_synthesis(router, source.query, synth_alias, transcript)
         synthesis.role = "synthesis"
         transcript.synthesis = synthesis
+        synth_round = DebateRound(round_number=-1, round_type="synthesis", responses=[synthesis])
+        await _fire_round_hook(on_round_complete, synth_round)
 
         # --- Scoring ---
         if ground_truth and not synthesis.error:
@@ -239,6 +283,8 @@ async def run_replay(
             }
 
     # --- Metadata ---
+    if panelist_context:
+        transcript.metadata["panelist_context"] = panelist_context
     transcript.metadata["source_transcript_id"] = source.transcript_id
     transcript.metadata["replay_config"] = {
         "synthesizer_override": synthesizer,
@@ -253,6 +299,8 @@ async def _run_initial_round(
     router: ProviderRouter,
     query: str,
     panel_aliases: list[str],
+    *,
+    panelist_context: dict[str, str] | None = None,
 ) -> list[ModelResponse]:
     """Fan out the initial query to all panel models in parallel.
 
@@ -260,20 +308,23 @@ async def _run_initial_round(
         router: Active provider router.
         query: User's original query.
         panel_aliases: List of model aliases.
+        panelist_context: Optional per-panelist context to prepend to prompts.
 
     Returns:
         List of ModelResponse objects from all panel members.
     """
-    prompt = format_initial(query)
-    requests = [
-        {
-            "alias_or_id": alias,
-            "prompt": prompt,
-            "model_alias": alias,
-            "round_number": 0,
-        }
-        for alias in panel_aliases
-    ]
+    base_prompt = format_initial(query)
+    requests = []
+    for alias in panel_aliases:
+        prompt = _inject_context(base_prompt, alias, panelist_context)
+        requests.append(
+            {
+                "alias_or_id": alias,
+                "prompt": prompt,
+                "model_alias": alias,
+                "round_number": 0,
+            }
+        )
     return await router.complete_parallel(requests)
 
 
@@ -283,6 +334,8 @@ async def _run_reflection_round(
     panel_aliases: list[str],
     prev_responses: list[ModelResponse],
     round_number: int,
+    *,
+    panelist_context: dict[str, str] | None = None,
 ) -> list[ModelResponse]:
     """Run one reflection round where each model sees others' responses.
 
@@ -295,6 +348,7 @@ async def _run_reflection_round(
         panel_aliases: List of model aliases.
         prev_responses: Responses from the previous round.
         round_number: Current reflection round number (1-indexed).
+        panelist_context: Optional per-panelist context to prepend to prompts.
 
     Returns:
         List of ModelResponse objects from all panel members.
@@ -313,7 +367,8 @@ async def _run_reflection_round(
             if r.model_alias != alias and not r.error
         ]
 
-        prompt = format_reflection(query, own_text, others)
+        base_prompt = format_reflection(query, own_text, others)
+        prompt = _inject_context(base_prompt, alias, panelist_context)
         requests.append(
             {
                 "alias_or_id": alias,
@@ -324,6 +379,54 @@ async def _run_reflection_round(
         )
 
     return await router.complete_parallel(requests)
+
+
+def _inject_context(
+    prompt: str,
+    alias: str,
+    panelist_context: dict[str, str] | None,
+) -> str:
+    """Prepend per-panelist context to a prompt if available.
+
+    Args:
+        prompt: The formatted prompt string.
+        alias: Model alias to look up in the context mapping.
+        panelist_context: Mapping of alias to context string, or None.
+
+    Returns:
+        Prompt with context prepended, or the original prompt if no context.
+    """
+    if not panelist_context:
+        return prompt
+    ctx = panelist_context.get(alias)
+    if not ctx:
+        return prompt
+    return f"{ctx}\n\n{prompt}"
+
+
+async def _fire_round_hook(
+    callback: OnRoundComplete,
+    debate_round: DebateRound,
+) -> None:
+    """Fire the on_round_complete callback if provided.
+
+    Exceptions in the callback are logged but not propagated, so a misbehaving
+    callback cannot abort the debate.
+
+    Args:
+        callback: The async callback, or None.
+        debate_round: The completed round to pass to the callback.
+    """
+    if callback is None:
+        return
+    try:
+        await callback(debate_round)
+    except Exception:
+        logger.exception(
+            "on_round_complete callback failed for %s round %d",
+            debate_round.round_type,
+            debate_round.round_number,
+        )
 
 
 async def _run_synthesis(

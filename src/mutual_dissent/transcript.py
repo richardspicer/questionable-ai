@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from mutual_dissent.config import TRANSCRIPT_DIR, ensure_dirs
-from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
+from mutual_dissent.models import DebateRound, DebateTranscript, ExperimentMetadata, ModelResponse
 
 
 def save_transcript(transcript: DebateTranscript) -> Path:
@@ -245,6 +245,13 @@ def _parse_transcript_file(filepath: Path) -> DebateTranscript:
     synthesis_data = data.get("synthesis")
     synthesis = _parse_response(synthesis_data) if synthesis_data else None
 
+    metadata = data.get("metadata", {})
+
+    # Reconstitute ExperimentMetadata if present.
+    experiment_raw = metadata.get("experiment")
+    if isinstance(experiment_raw, dict) and "experiment_id" in experiment_raw:
+        metadata["experiment"] = ExperimentMetadata.from_dict(experiment_raw)
+
     transcript = DebateTranscript(
         transcript_id=data["transcript_id"],
         query=data["query"],
@@ -254,7 +261,7 @@ def _parse_transcript_file(filepath: Path) -> DebateTranscript:
         rounds=rounds,
         synthesis=synthesis,
         created_at=_parse_datetime(data.get("created_at", "")),
-        metadata=data.get("metadata", {}),
+        metadata=metadata,
     )
     return transcript
 
