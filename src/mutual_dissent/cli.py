@@ -456,7 +456,7 @@ def replay(
 
 
 @main.command()
-@click.option("--port", default=8080, help="Port to bind to.")
+@click.option("--port", type=click.IntRange(1, 65535), default=8080, help="Port to bind to.")
 @click.option("--host", default="127.0.0.1", help="Host to bind to.")
 @click.option("--no-open", is_flag=True, default=False, help="Don't open browser automatically.")
 def serve(port: int, host: str, no_open: bool) -> None:
