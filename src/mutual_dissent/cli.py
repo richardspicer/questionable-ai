@@ -455,6 +455,17 @@ def replay(
     _emit_output(transcript, output=output, output_file=output_file, verbose=verbose)
 
 
+@main.command()
+@click.option("--port", default=8080, help="Port to bind to.")
+@click.option("--host", default="127.0.0.1", help="Host to bind to.")
+@click.option("--no-open", is_flag=True, help="Don't open browser automatically.")
+def serve(port: int, host: str, no_open: bool) -> None:
+    """Start the web UI server."""
+    from mutual_dissent.web.app import create_app
+
+    create_app(host=host, port=port, show=not no_open)
+
+
 @main.group()
 def config() -> None:
     """Manage configuration."""
