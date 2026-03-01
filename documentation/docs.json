@@ -3,7 +3,9 @@
   "theme": "almond",
   "name": "Mutual Dissent",
   "colors": {
-    "primary": "#06b6d4"
+    "primary": "#06b6d4",
+    "light": "#06b6d4",
+    "dark": "#06b6d4"
   },
   "navigation": {
     "groups": [
