@@ -107,6 +107,10 @@ than failing the debate. Implemented in `pricing.py`.
 **Transcript Logger** — Writes full structured JSON for every debate. Also
 produces optional Markdown summary for quick review.
 
+**Web Package** — NiceGUI-based web server and page definitions. Registered
+routes call the same Orchestrator as the CLI. Started via `mutual-dissent serve`.
+See [Web UI Architecture](#web-ui-architecture) for stack and design details.
+
 ---
 
 ## Provider Abstraction
@@ -514,9 +518,16 @@ mutual-dissent ask "What is the most effective approach to securing MCP servers?
 ```
 mutual-dissent serve
 mutual-dissent serve --port 8080 --host 0.0.0.0
+mutual-dissent serve --no-open
 ```
 
 Starts the NiceGUI web server. Opens browser automatically unless `--no-open`.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--port` | int | `8080` | Port to bind to |
+| `--host` | str | `127.0.0.1` | Host address to bind to |
+| `--no-open` | flag | false | Don't open browser automatically |
 
 ### replay
 
@@ -603,6 +614,15 @@ mutual-dissent serve
 
 The web UI is a **client** of the same Orchestrator the CLI uses. No separate
 backend — NiceGUI runs Python server-side and pushes UI updates over WebSocket.
+
+### Web Package Modules
+
+| Module | Path | Status | Description |
+|--------|------|--------|-------------|
+| `app.py` | `web/app.py` | Scaffolded | Registers `@ui.page` routes for `/` and `/dashboard`, calls `create_layout()` per route, then starts NiceGUI via `ui.run()`. Blocking — called by the `serve` CLI command. |
+| `layout.py` | `web/layout.py` | Scaffolded | `create_layout()` builds the shared navigation shell: a header with the app title and dark mode toggle, a left drawer with links to Debate and Dashboard pages, and a footer with the version string. Called at the top of every page function. |
+| `pages/debate.py` | `web/pages/debate.py` | Placeholder | `render()` outputs a stub for the live debate view (power tool interface). Full implementation deferred to Brief 2. |
+| `pages/dashboard.py` | `web/pages/dashboard.py` | Placeholder | `render()` outputs a stub for the research dashboard (transcript browser and visualizations). Full implementation deferred to Brief 4. |
 
 ### Desktop Wrapper (Tauri 2)
 
