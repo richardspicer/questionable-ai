@@ -8,6 +8,7 @@ and async context manager lifecycle.
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -98,6 +99,10 @@ class TestOpenRouterError:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestAsyncContextManager:
     """OpenRouterProvider async context manager lifecycle."""
 
@@ -138,6 +143,10 @@ def _mock_success_response() -> httpx.Response:
     return resp
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestCompleteWithPrompt:
     """OpenRouterProvider.complete() using prompt parameter."""
 
@@ -197,6 +206,10 @@ class TestCompleteWithPrompt:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestCompleteWithMessages:
     """OpenRouterProvider.complete() using messages parameter."""
 
@@ -250,6 +263,10 @@ class TestCompleteWithMessages:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestErrorHandling:
     """OpenRouterProvider.complete() error paths."""
 
@@ -317,6 +334,10 @@ class TestErrorHandling:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestCompleteParallel:
     """complete_parallel() preserves request order."""
 

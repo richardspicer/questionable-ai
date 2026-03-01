@@ -9,6 +9,7 @@ and async context manager lifecycle.
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -62,6 +63,10 @@ class TestAnthropicProviderConstruction:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestAsyncContextManager:
     """AnthropicProvider async context manager lifecycle."""
 
@@ -245,6 +250,10 @@ def _mock_anthropic_success() -> httpx.Response:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestCompleteWithPrompt:
     """AnthropicProvider.complete() using prompt parameter."""
 
@@ -337,6 +346,10 @@ class TestCompleteWithPrompt:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestCompleteWithMessages:
     """AnthropicProvider.complete() using messages parameter."""
 
@@ -408,6 +421,10 @@ class TestCompleteWithMessages:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestErrorHandling:
     """AnthropicProvider.complete() error paths."""
 

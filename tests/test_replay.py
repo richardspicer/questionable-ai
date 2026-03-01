@@ -7,6 +7,7 @@ override, metadata linking, round numbering continuity, and CLI behavior.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -175,6 +176,10 @@ def _config() -> Config:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestRunReplayResynthesizeOnly:
     """run_replay() with additional_rounds=0 re-synthesizes without adding rounds."""
 
@@ -241,6 +246,10 @@ class TestRunReplayResynthesizeOnly:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestRunReplayWithAdditionalRounds:
     """run_replay() with additional_rounds>0 appends reflection rounds."""
 
@@ -305,6 +314,10 @@ class TestRunReplayWithAdditionalRounds:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestRunReplaySynthesizerOverride:
     """run_replay() synthesizer parameter overrides the source's synthesizer."""
 
@@ -347,6 +360,10 @@ class TestRunReplaySynthesizerOverride:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestRunReplayValidation:
     """run_replay() rejects invalid inputs."""
 

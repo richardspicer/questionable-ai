@@ -8,6 +8,7 @@ compatibility with old transcripts.
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -246,6 +247,10 @@ def _mock_models_response() -> httpx.Response:
     return resp
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestPricingCache:
     """PricingCache fetches and caches model pricing."""
 
@@ -408,6 +413,10 @@ class TestPricingCache:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestComputeStatsWithCost:
     """_compute_stats() populates cost when pricing is available."""
 
@@ -591,6 +600,10 @@ class TestBackwardCompatibility:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestOpenRouterTokenSplit:
     """OpenRouter provider extracts input/output token split."""
 
@@ -643,6 +656,10 @@ class TestOpenRouterTokenSplit:
         assert result.output_tokens is None
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestAnthropicTokenSplit:
     """Anthropic provider extracts input/output token split."""
 

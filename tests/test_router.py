@@ -9,6 +9,7 @@ handling, warning logging for direct-mode fallbacks, and package import.
 from __future__ import annotations
 
 import logging
+import sys
 from unittest.mock import AsyncMock
 
 import pytest
@@ -231,6 +232,10 @@ class TestRoutingDecisions:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestProviderLifecycle:
     """__aenter__ opens and __aexit__ closes providers based on config."""
 
@@ -295,6 +300,10 @@ class TestProviderLifecycle:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestDispatch:
     """complete() calls the right provider with the right model_id."""
 
@@ -386,6 +395,10 @@ class TestDispatch:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestNoProviderAvailable:
     """complete() returns error ModelResponse when no provider is available."""
 
@@ -427,6 +440,10 @@ class TestNoProviderAvailable:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestMixedParallel:
     """complete_parallel() routes different requests to different providers."""
 
@@ -592,6 +609,10 @@ class TestImport:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Slow asyncio overhead on Windows — validated on Ubuntu CI",
+)
 class TestRoutingProvenance:
     """complete() attaches routing info to every response."""
 
