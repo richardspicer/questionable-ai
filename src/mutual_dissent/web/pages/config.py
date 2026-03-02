@@ -18,6 +18,7 @@ from mutual_dissent.config import (
     DEFAULT_MODEL_ALIASES_V2,
     Config,
     load_config,
+    write_config,
 )
 
 # Canonical list of providers shown in the UI.
@@ -230,12 +231,162 @@ def _render_aliases_section(state: dict[str, Any]) -> None:
                     ).bind_value(ids, "direct").props("outlined dense").classes("flex-grow")
 
 
+# OpenRouter model-ID prefix → provider key in the config providers dict.
+# Used by validation to check whether a panel model has a routable key.
+_OR_PREFIX_TO_PROVIDER: dict[str, str] = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "google": "google",
+    "x-ai": "xai",
+    "groq": "groq",
+}
+
+
+def _validate_form_state(
+    state: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    """Check form state for errors and warnings before saving.
+
+    Errors block the save operation; warnings are shown but do not
+    prevent saving.
+
+    Args:
+        state: The current form state dict with keys ``providers``,
+            ``provider_sources``, ``panel``, and ``aliases``.
+
+    Returns:
+        Tuple of (errors, warnings) where each is a list of
+        human-readable message strings.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # --- Error: no API key configured for any provider ---
+    has_any_key = False
+    for provider in _PROVIDERS:
+        source = state["provider_sources"].get(provider, "none")
+        key_val = state["providers"].get(provider, "")
+        if source == "env" or key_val:
+            has_any_key = True
+            break
+    if not has_any_key:
+        errors.append(
+            "No API key configured for any provider. Set at least one provider key before saving."
+        )
+
+    # --- Warning: panel model with no route ---
+    providers_dict: dict[str, str] = state.get("providers", {})
+    sources_dict: dict[str, str] = state.get("provider_sources", {})
+    aliases_dict: dict[str, dict[str, str]] = state.get("aliases", {})
+    has_openrouter = bool(
+        providers_dict.get("openrouter", "") or sources_dict.get("openrouter") == "env"
+    )
+
+    for alias in state.get("panel", []):
+        ids = aliases_dict.get(alias, {})
+        or_id = ids.get("openrouter", "")
+        prefix = or_id.split("/")[0] if "/" in or_id else ""
+        vendor_provider = _OR_PREFIX_TO_PROVIDER.get(prefix, "")
+
+        has_direct_key = (
+            bool(
+                providers_dict.get(vendor_provider, "")
+                or sources_dict.get(vendor_provider) == "env"
+            )
+            if vendor_provider
+            else False
+        )
+
+        if not has_openrouter and not has_direct_key:
+            warnings.append(
+                f"Panel model '{alias}' may have no route: "
+                f"no OpenRouter key and no direct key for its vendor."
+            )
+
+    return errors, warnings
+
+
+def _apply_form_to_config(state: dict[str, Any]) -> Config:
+    """Build a Config instance from the current form state.
+
+    Translates the flat form state dictionary back into a fully
+    populated Config dataclass. Only non-empty provider keys are
+    included. The flat ``model_aliases`` dict is derived from the
+    v2 aliases for backward compatibility.
+
+    Args:
+        state: The current form state dict with keys ``panel``,
+            ``synthesizer``, ``rounds``, ``providers``,
+            ``routing``, and ``aliases``.
+
+    Returns:
+        A new Config instance reflecting the form state.
+    """
+    # Filter out empty provider keys.
+    providers = {k: v for k, v in state.get("providers", {}).items() if v}
+
+    # Build v2 aliases from form state.
+    v2_aliases: dict[str, dict[str, str]] = {}
+    for alias, ids in state.get("aliases", {}).items():
+        v2_aliases[alias] = dict(ids)
+
+    # Derive flat aliases from v2 (openrouter IDs only).
+    flat_aliases: dict[str, str] = {
+        alias: ids.get("openrouter", "") for alias, ids in v2_aliases.items()
+    }
+
+    cfg = Config(
+        api_key=providers.get("openrouter", ""),
+        providers=providers,
+        routing=dict(state.get("routing", {"default_mode": "auto"})),
+        model_aliases=flat_aliases,
+        _model_aliases_v2=v2_aliases,
+        default_panel=list(state.get("panel", [])),
+        default_synthesizer=state.get("synthesizer", "claude"),
+        default_rounds=int(state.get("rounds", 1)),
+    )
+    return cfg
+
+
+async def _handle_save(state: dict[str, Any]) -> None:
+    """Validate form state and write configuration to disk.
+
+    Runs validation first. If errors are found, shows a negative
+    notification and aborts. Warnings are shown but do not block
+    the save. On success, calls ``write_config()`` and shows a
+    success notification.
+
+    Args:
+        state: The current form state dict.
+    """
+    errors, warnings = _validate_form_state(state)
+
+    if errors:
+        for err in errors:
+            ui.notify(err, type="negative")
+        return
+
+    for warn in warnings:
+        ui.notify(warn, type="warning")
+
+    # Determine which providers came from env vars (exclude from file).
+    env_providers: set[str] = {
+        provider
+        for provider, source in state.get("provider_sources", {}).items()
+        if source == "env"
+    }
+
+    cfg = _apply_form_to_config(state)
+    write_config(cfg, env_providers=env_providers)
+    ui.notify("Configuration saved.", type="positive")
+
+
 def render() -> None:
     """Render the full configuration page.
 
     Loads the current config, builds reactive form state, and renders
-    all four configuration sections: defaults, providers, routing, and
-    model aliases.
+    all four configuration sections (defaults, providers, routing,
+    model aliases) plus Save and Test Providers action buttons.
     """
     config = load_config()
     state = _build_form_state(config)
@@ -247,3 +398,11 @@ def render() -> None:
         _render_providers_section(state)
         _render_routing_section(state)
         _render_aliases_section(state)
+
+        ui.separator()
+        with ui.row().classes("w-full justify-between items-center"):
+            ui.button(
+                "Save",
+                icon="save",
+                on_click=lambda: _handle_save(state),
+            ).props("color=primary")

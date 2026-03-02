@@ -105,3 +105,75 @@ class TestRoutingState:
 
         assert state["routing"]["default_mode"] == "direct"
         assert state["routing"]["claude"] == "direct"
+
+
+class TestValidateFormState:
+    """_validate_form_state() catches config problems."""
+
+    def test_no_api_keys_returns_error(self) -> None:
+        """Validation blocks save if no provider has a key."""
+        from mutual_dissent.web.pages.config import (
+            _build_form_state,
+            _validate_form_state,
+        )
+
+        state = _build_form_state(Config())
+        state["providers"] = {}
+        state["provider_sources"] = {k: "none" for k in state["provider_sources"]}
+
+        errors, warnings = _validate_form_state(state)
+        assert any("API key" in e or "api key" in e.lower() for e in errors)
+
+    def test_panel_model_without_route_warns(self) -> None:
+        """Validation warns if a panel model has no route."""
+        from mutual_dissent.web.pages.config import (
+            _build_form_state,
+            _validate_form_state,
+        )
+
+        state = _build_form_state(Config())
+        state["providers"] = {}
+        state["provider_sources"] = {k: "none" for k in state["provider_sources"]}
+        state["panel"] = ["claude"]
+
+        errors, warnings = _validate_form_state(state)
+        assert any("route" in w.lower() or "key" in w.lower() for w in warnings)
+
+    def test_valid_config_no_errors(self) -> None:
+        """Valid config produces no errors."""
+        from mutual_dissent.web.pages.config import (
+            _build_form_state,
+            _validate_form_state,
+        )
+
+        state = _build_form_state(Config())
+        state["providers"] = {"openrouter": "sk-or-test"}
+        state["provider_sources"] = {"openrouter": "file"}
+
+        errors, warnings = _validate_form_state(state)
+        assert len(errors) == 0
+
+
+class TestApplyFormToConfig:
+    """_apply_form_to_config() builds Config from form state."""
+
+    def test_basic_roundtrip(self) -> None:
+        """Form state can be applied to a Config and key fields survive."""
+        from mutual_dissent.web.pages.config import (
+            _apply_form_to_config,
+            _build_form_state,
+        )
+
+        cfg = Config()
+        cfg.default_panel = ["claude", "gpt"]
+        cfg.default_synthesizer = "gpt"
+        cfg.default_rounds = 2
+        cfg.providers = {"openrouter": "sk-or-test"}
+
+        state = _build_form_state(cfg)
+        result = _apply_form_to_config(state)
+
+        assert result.default_panel == ["claude", "gpt"]
+        assert result.default_synthesizer == "gpt"
+        assert result.default_rounds == 2
+        assert result.providers["openrouter"] == "sk-or-test"
