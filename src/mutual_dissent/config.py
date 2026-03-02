@@ -313,6 +313,78 @@ def load_config() -> Config:
     return config
 
 
+def write_config(
+    config: Config,
+    path: Path | None = None,
+    *,
+    env_providers: set[str] | None = None,
+) -> None:
+    """Serialize a Config to TOML and write to disk.
+
+    Builds a Phase 1.5 format TOML document from the Config dataclass.
+    Provider keys sourced from environment variables are excluded -- only
+    values the user explicitly set through the UI should be persisted.
+
+    If the file already exists, its permissions are preserved after write.
+
+    Args:
+        config: Config instance to serialize.
+        path: File path to write. Defaults to CONFIG_PATH.
+        env_providers: Set of provider names whose keys came from env vars
+            and should be excluded from the written file.
+    """
+    import tomlkit
+
+    target = path or CONFIG_PATH
+    env_provs = env_providers or set()
+
+    # Capture existing permissions before overwriting.
+    existing_mode: int | None = None
+    if target.exists():
+        existing_mode = target.stat().st_mode & 0o777
+
+    doc = tomlkit.document()
+
+    # --- Providers ---
+    providers_table = tomlkit.table()
+    for provider_name, key_value in sorted(config.providers.items()):
+        if provider_name in env_provs:
+            continue
+        if key_value:
+            providers_table.add(f"{provider_name}_api_key", key_value)
+    doc.add("providers", providers_table)
+
+    # --- Routing ---
+    routing_table = tomlkit.table()
+    for rkey, rval in sorted(config.routing.items()):
+        routing_table.add(rkey, rval)
+    doc.add("routing", routing_table)
+
+    # --- Model aliases (Phase 1.5 nested format) ---
+    aliases_table = tomlkit.table()
+    for alias, ids in sorted(config._model_aliases_v2.items()):
+        alias_sub = tomlkit.table()
+        for id_key, id_val in sorted(ids.items()):
+            alias_sub.add(id_key, id_val)
+        aliases_table.add(alias, alias_sub)
+    doc.add("model_aliases", aliases_table)
+
+    # --- Defaults ---
+    defaults_table = tomlkit.table()
+    defaults_table.add("panel", config.default_panel)
+    defaults_table.add("synthesizer", config.default_synthesizer)
+    defaults_table.add("rounds", config.default_rounds)
+    doc.add("defaults", defaults_table)
+
+    # Write: parent dirs, then file.
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(tomlkit.dumps(doc))
+
+    # Restore permissions if file existed before.
+    if existing_mode is not None:
+        target.chmod(existing_mode)
+
+
 def ensure_dirs() -> None:
     """Create application directories if they don't exist."""
     APP_DIR.mkdir(parents=True, exist_ok=True)

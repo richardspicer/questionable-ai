@@ -1,18 +1,21 @@
 """Tests for Phase 1.5 config schema.
 
 Covers: new schema loading, backward compatibility, env var override,
-resolve_model with dual IDs, get_provider_key, and routing mode access.
+resolve_model with dual IDs, get_provider_key, routing mode access,
+and write_config() serialization.
 """
 
 from __future__ import annotations
 
 import os
+import sys
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from mutual_dissent.config import Config, load_config
+from mutual_dissent.config import Config, load_config, write_config
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -392,3 +395,158 @@ class TestApiKeyPrecedence:
         config = _load_with_config(config_dir, BOTH_API_KEYS_TOML)
         assert config.api_key == "sk-or-providers-wins"
         assert config.providers["openrouter"] == "sk-or-providers-wins"
+
+
+# ---------------------------------------------------------------------------
+# write_config() serialization
+# ---------------------------------------------------------------------------
+
+
+class TestWriteConfig:
+    """write_config() serializes Config to TOML and roundtrips correctly."""
+
+    def _load_roundtrip(self, config_path: Path) -> Config:
+        """Load config from a written file, suppressing env var contamination."""
+        clean_env = {
+            "OPENROUTER_API_KEY": "",
+            "ANTHROPIC_API_KEY": "",
+            "OPENAI_API_KEY": "",
+            "GOOGLE_API_KEY": "",
+            "XAI_API_KEY": "",
+            "GROQ_API_KEY": "",
+        }
+        with (
+            patch("mutual_dissent.config.CONFIG_PATH", config_path),
+            patch.dict(os.environ, clean_env, clear=False),
+        ):
+            return load_config()
+
+    def test_roundtrip_defaults(self, tmp_path: Path) -> None:
+        """write_config then load_config reproduces defaults (panel, synthesizer, rounds)."""
+        config = Config(
+            default_panel=["claude", "gpt"],
+            default_synthesizer="gpt",
+            default_rounds=2,
+        )
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path)
+
+        loaded = self._load_roundtrip(config_path)
+
+        assert loaded.default_panel == ["claude", "gpt"]
+        assert loaded.default_synthesizer == "gpt"
+        assert loaded.default_rounds == 2
+
+    def test_roundtrip_providers(self, tmp_path: Path) -> None:
+        """write_config preserves provider keys (not env-sourced ones)."""
+        config = Config(
+            providers={"openrouter": "sk-or-test", "anthropic": "sk-ant-test"},
+        )
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path)
+
+        loaded = self._load_roundtrip(config_path)
+
+        assert loaded.providers["openrouter"] == "sk-or-test"
+        assert loaded.providers["anthropic"] == "sk-ant-test"
+
+    def test_roundtrip_routing(self, tmp_path: Path) -> None:
+        """write_config preserves routing config."""
+        config = Config(
+            routing={"default_mode": "auto", "claude": "direct", "gpt": "openrouter"},
+        )
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path)
+
+        loaded = self._load_roundtrip(config_path)
+
+        assert loaded.routing["default_mode"] == "auto"
+        assert loaded.routing["claude"] == "direct"
+        assert loaded.routing["gpt"] == "openrouter"
+
+    def test_roundtrip_model_aliases_v2(self, tmp_path: Path) -> None:
+        """write_config preserves dual-ID model aliases."""
+        aliases_v2 = {
+            "claude": {
+                "openrouter": "anthropic/claude-sonnet-4.5",
+                "direct": "claude-sonnet-4-5-20250929",
+            },
+            "gpt": {
+                "openrouter": "openai/gpt-5.2",
+                "direct": "gpt-5.2",
+            },
+        }
+        config = Config(_model_aliases_v2=aliases_v2)
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path)
+
+        loaded = self._load_roundtrip(config_path)
+
+        assert loaded.resolve_model("claude") == "anthropic/claude-sonnet-4.5"
+        assert loaded.resolve_model("claude", direct=True) == "claude-sonnet-4-5-20250929"
+        assert loaded.resolve_model("gpt") == "openai/gpt-5.2"
+        assert loaded.resolve_model("gpt", direct=True) == "gpt-5.2"
+
+    def test_skips_env_sourced_keys(self, tmp_path: Path) -> None:
+        """write_config excludes keys that came from environment variables."""
+        config = Config(
+            providers={
+                "openrouter": "sk-or-from-env",
+                "anthropic": "sk-ant-from-file",
+            },
+        )
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path, env_providers={"openrouter"})
+
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+
+        # openrouter should be excluded, anthropic should be present.
+        providers = data.get("providers", {})
+        assert "openrouter_api_key" not in providers
+        assert providers["anthropic_api_key"] == "sk-ant-from-file"
+
+    def test_produces_valid_toml(self, tmp_path: Path) -> None:
+        """write_config output is parseable by tomllib and has expected sections."""
+        config = Config(
+            providers={"openrouter": "sk-or-test"},
+            routing={"default_mode": "auto"},
+            default_panel=["claude", "gpt"],
+            default_synthesizer="claude",
+            default_rounds=1,
+        )
+        config_path = tmp_path / "config.toml"
+        write_config(config, path=config_path)
+
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+
+        assert "providers" in data
+        assert "routing" in data
+        assert "model_aliases" in data
+        assert "defaults" in data
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        """write_config creates parent directories if needed."""
+        nested_path = tmp_path / "a" / "b" / "c" / "config.toml"
+        config = Config()
+        write_config(config, path=nested_path)
+
+        assert nested_path.exists()
+        # Verify it's valid TOML.
+        with open(nested_path, "rb") as f:
+            data = tomllib.load(f)
+        assert "defaults" in data
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="chmod not supported on Windows")
+    def test_preserves_file_permissions(self, tmp_path: Path) -> None:
+        """write_config preserves existing file permissions on overwrite."""
+        config_path = tmp_path / "config.toml"
+        config_path.write_text("")
+        config_path.chmod(0o600)
+
+        config = Config()
+        write_config(config, path=config_path)
+
+        mode = config_path.stat().st_mode & 0o777
+        assert mode == 0o600
