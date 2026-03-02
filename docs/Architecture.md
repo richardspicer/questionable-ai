@@ -4,28 +4,28 @@
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              CLI / Web UI / Desktop              │
-│  query, --panel, --synthesizer, --rounds, etc.   │
+│              CLI / Web UI / Desktop             │
+│  query, --panel, --synthesizer, --rounds, etc.  │
 └──────────────────────┬──────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────┐
-│                 Orchestrator                     │
-│  Fan-out, round management, reflection injection │
+│                 Orchestrator                    │
+│ Fan-out, round management, reflection injection │
 └──────────────────────┬──────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────┐
-│               Provider Router                    │
-│  Routes each model to its configured provider    │
-│  auto / direct / openrouter per model alias      │
+│               Provider Router                   │
+│  Routes each model to its configured provider   │
+│  auto / direct / openrouter per model alias     │
 └──────┬───────────┬───────────┬──────────────────┘
        │           │           │
        ▼           ▼           ▼
 ┌──────────┐ ┌──────────┐ ┌──────────────┐
-│ Anthropic│ │ OpenAI   │ │  OpenRouter   │
-│ Provider │ │ Provider │ │  Provider     │
-│ (direct) │ │ (direct) │ │  (fallback)   │
+│ Anthropic│ │ OpenAI   │ │  OpenRouter  │
+│ Provider │ │ Provider │ │  Provider    │
+│ (direct) │ │ (direct) │ │  (fallback)  │
 └────┬─────┘ └────┬─────┘ └──────┬───────┘
      │            │              │
      ▼            ▼              ▼
@@ -49,9 +49,9 @@ Fan-out (parallel) → Reflection Router → Reflection (parallel)
                                               ▼
                                       Scoring (judge)
                                               │
-                              ┌────────────┼────────────┐
-                              ▼            ▼            ▼
-                        Terminal      JSON Log     Markdown
+                                 ┌────────────┼────────────┐
+                                 ▼            ▼            ▼
+                             Terminal      JSON Log     Markdown
 ```
 
 ### Component Descriptions
@@ -244,21 +244,21 @@ in the original request order.
 
 ```
 Model alias → vendor mapping (hardcoded: claude→anthropic, gpt→openai, etc.)
-                    │
-                    ▼
-         Config routing mode?
-         ┌──────────┼──────────┐
-         ▼          ▼          ▼
-      "direct"   "auto"    "openrouter"
-         │          │          │
-         │     Key exists?     │
-         │     ┌────┴────┐     │
-         │     ▼         ▼     │
-         │   Yes        No     │
-         │     │         │     │
-         ▼     ▼         ▼     ▼
-      Direct  Direct  OpenRouter  OpenRouter
-      Provider Provider Provider  Provider
+                        │
+                        ▼
+               Config routing mode?
+         ┌──────────────┼────────────────┐
+         ▼              ▼                ▼
+      "direct"        "auto"       "openrouter"
+         │              │                │
+         │          Key exists?          │
+         │         ┌────┴────┐           │
+         │         ▼         ▼           │
+         │        Yes        No          │
+         │         │         │           │
+         ▼         ▼         ▼           ▼
+       Direct   Direct   OpenRouter  OpenRouter
+      Provider Provider   Provider    Provider
 ```
 
 ---
