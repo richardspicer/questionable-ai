@@ -621,7 +621,9 @@ backend — NiceGUI runs Python server-side and pushes UI updates over WebSocket
 |--------|------|--------|-------------|
 | `app.py` | `web/app.py` | Scaffolded | Registers `@ui.page` routes for `/` and `/dashboard`, calls `create_layout()` per route, then starts NiceGUI via `ui.run()`. Blocking — called by the `serve` CLI command. |
 | `layout.py` | `web/layout.py` | Scaffolded | `create_layout()` builds the shared navigation shell: a header with the app title and dark mode toggle, a left drawer with links to Debate and Dashboard pages, and a footer with the version string. Called at the top of every page function. |
-| `pages/debate.py` | `web/pages/debate.py` | Placeholder | `render()` outputs a stub for the live debate view (power tool interface). Full implementation deferred to Brief 2. |
+| `colors.py` | `web/colors.py` | Implemented | `MODEL_CSS_COLORS` maps model aliases to Tailwind CSS border/text/bg classes. `get_css_colors()` resolves alias to color dict with gray fallback. Mirrors `MODEL_COLORS` from `display.py` for the web context. |
+| `components/transcript_view.py` | `web/components/transcript_view.py` | Implemented | Reusable transcript renderer. `render_transcript()` displays rounds as expansion panels with color-coded response cards, inline diff toggle (via `compute_diff()`), synthesis section, ground-truth score, and metadata bar. Used by the debate page and future dashboard. |
+| `pages/debate.py` | `web/pages/debate.py` | Implemented | Side-by-side debate view: query form (left panel with textarea, panel checkboxes, synthesizer picker, round count, ground truth) and scrollable transcript display (right panel). `_run_debate()` calls the orchestrator and saves the transcript. Ctrl+Enter keyboard shortcut. Loading spinner during execution. |
 | `pages/dashboard.py` | `web/pages/dashboard.py` | Placeholder | `render()` outputs a stub for the research dashboard (transcript browser and visualizations). Full implementation deferred to Brief 4. |
 
 ### Desktop Wrapper (Tauri 2)
