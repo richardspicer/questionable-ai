@@ -381,6 +381,98 @@ async def _handle_save(state: dict[str, Any]) -> None:
     ui.notify("Configuration saved.", type="positive")
 
 
+async def _handle_test_providers(
+    state: dict[str, Any],
+    results_container: ui.column,
+) -> None:
+    """Test provider connectivity using the current form state.
+
+    Builds a temporary Config from form state, collects unique model
+    aliases from the panel and synthesizer, then calls
+    ``_run_config_test()`` to send a test prompt to each. Results are
+    rendered in the provided container with alias, vendor, route,
+    model ID, latency, and status.
+
+    Args:
+        state: The current form state dict.
+        results_container: NiceGUI column to render test results into.
+    """
+    from mutual_dissent.cli import _run_config_test
+
+    results_container.clear()
+
+    cfg = _apply_form_to_config(state)
+
+    # Collect unique aliases: panel + synthesizer.
+    panel = list(state.get("panel", []))
+    synthesizer = state.get("synthesizer", "")
+    aliases = list(dict.fromkeys(panel + ([synthesizer] if synthesizer else [])))
+
+    if not aliases:
+        with results_container:
+            ui.label("No models to test.").classes("text-orange-400")
+        return
+
+    # Show spinner while testing.
+    with results_container:
+        ui.spinner("dots", size="lg")
+
+    try:
+        results = await _run_config_test(cfg, aliases)
+    except Exception as exc:
+        results_container.clear()
+        with results_container:
+            ui.label(f"Error: {exc}").classes("text-red-500 font-bold")
+        return
+
+    # Clear spinner, render results.
+    results_container.clear()
+    with results_container:
+        # Header row
+        with ui.row().classes("items-center gap-4 w-full"):
+            ui.label("Alias").classes("w-20 font-bold text-sm")
+            ui.label("Vendor").classes("w-24 font-bold text-sm")
+            ui.label("Route").classes("w-24 font-bold text-sm")
+            ui.label("Model ID").classes("flex-grow font-bold text-sm")
+            ui.label("Latency").classes("w-16 font-bold text-sm text-right")
+            ui.label("Status").classes("w-8 font-bold text-sm")
+
+        for result in results:
+            alias = str(result["alias"])
+            decision = result["decision"]
+            response = result["response"]
+
+            vendor_str = decision.vendor.value  # type: ignore[union-attr]
+            route_str = (
+                "openrouter"
+                if decision.via_openrouter  # type: ignore[union-attr]
+                else "direct"
+            )
+            model_id = response.model_id  # type: ignore[union-attr]
+            latency_ms = response.latency_ms  # type: ignore[union-attr]
+            error = response.error  # type: ignore[union-attr]
+
+            if error:
+                latency_str = "\u2014"
+                status_icon = "cancel"
+                status_class = "text-red-500"
+            else:
+                latency_str = f"{latency_ms / 1000:.1f}s" if latency_ms is not None else "\u2014"
+                status_icon = "check_circle"
+                status_class = "text-green-500"
+
+            with ui.row().classes("items-center gap-4 w-full"):
+                ui.label(alias).classes("w-20 font-mono")
+                ui.label(vendor_str).classes("w-24")
+                ui.label(route_str).classes("w-24")
+                ui.label(model_id).classes("flex-grow text-gray-400 text-sm")
+                ui.label(latency_str).classes("w-16 text-right")
+                ui.icon(status_icon).classes(status_class)
+
+            if error:
+                ui.label(f"  {error}").classes("text-red-400 text-sm ml-8")
+
+
 def render() -> None:
     """Render the full configuration page.
 
@@ -400,9 +492,17 @@ def render() -> None:
         _render_aliases_section(state)
 
         ui.separator()
+
+        test_results = ui.column().classes("w-full mt-4")
+
         with ui.row().classes("w-full justify-between items-center"):
             ui.button(
                 "Save",
                 icon="save",
                 on_click=lambda: _handle_save(state),
             ).props("color=primary")
+            ui.button(
+                "Test Providers",
+                icon="science",
+                on_click=lambda: _handle_test_providers(state, test_results),
+            ).props("color=secondary outlined")
