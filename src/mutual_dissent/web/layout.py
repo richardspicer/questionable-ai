@@ -31,6 +31,9 @@ def create_layout() -> None:
         ui.link("Dashboard", "/dashboard").classes(
             "text-white no-underline block py-2 px-4 hover:bg-gray-700"
         )
+        ui.link("Config", "/config").classes(
+            "text-white no-underline block py-2 px-4 hover:bg-gray-700"
+        )
 
     with ui.footer().classes("bg-gray-900 text-gray-500 text-xs py-2 px-4"):
         ui.label(f"Mutual Dissent v{__version__}")
