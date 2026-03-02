@@ -578,12 +578,13 @@ The web UI has two distinct views optimized for different workflows:
 Dense, keyboard-driven interface for running and reviewing debates.
 
 - Dark mode, monospace-heavy, minimal chrome
-- Split panes: query input left, model responses right (or vertical stack)
-- Live streaming: model responses appear as tokens arrive
-- Keyboard shortcuts: `Ctrl+Enter` submit, `Tab` between panels, `/` focus query
+- Split panes: query input left, model responses right
+- Progressive round rendering: each round appears as it completes via `on_round_complete` callback, with fade-in animation
+- Status bar: shows current phase ("Initial round...", "Reflection 1 of 2...", "Synthesizing..."), elapsed time, and final stats (tokens, cost)
+- Abort button: cancels running debates, preserves partial results
+- Keyboard shortcuts: `Ctrl+Enter` submit
 - Panel config bar: model toggles, round count, synthesizer picker
 - Inline diff: highlight what changed between initial and reflection rounds
-- One-click re-run with different synthesizer
 
 **Research Dashboard — Data Focus**
 
@@ -622,8 +623,9 @@ backend — NiceGUI runs Python server-side and pushes UI updates over WebSocket
 | `app.py` | `web/app.py` | Scaffolded | Registers `@ui.page` routes for `/` and `/dashboard`, calls `create_layout()` per route, then starts NiceGUI via `ui.run()`. Blocking — called by the `serve` CLI command. |
 | `layout.py` | `web/layout.py` | Scaffolded | `create_layout()` builds the shared navigation shell: a header with the app title and dark mode toggle, a left drawer with links to Debate and Dashboard pages, and a footer with the version string. Called at the top of every page function. |
 | `colors.py` | `web/colors.py` | Implemented | `MODEL_CSS_COLORS` maps model aliases to Tailwind CSS border/text/bg classes. `get_css_colors()` resolves alias to color dict with gray fallback. Mirrors `MODEL_COLORS` from `display.py` for the web context. |
-| `components/transcript_view.py` | `web/components/transcript_view.py` | Implemented | Reusable transcript renderer. `render_transcript()` displays rounds as expansion panels with color-coded response cards, inline diff toggle (via `compute_diff()`), synthesis section, ground-truth score, and metadata bar. Used by the debate page and future dashboard. |
-| `pages/debate.py` | `web/pages/debate.py` | Implemented | Side-by-side debate view: query form (left panel with textarea, panel checkboxes, synthesizer picker, round count, ground truth) and scrollable transcript display (right panel). `_run_debate()` calls the orchestrator and saves the transcript. Ctrl+Enter keyboard shortcut. Loading spinner during execution. |
+| `components/transcript_view.py` | `web/components/transcript_view.py` | Implemented | Reusable transcript renderer. `render_transcript()` displays rounds as expansion panels with color-coded response cards, inline diff toggle (via `compute_diff()`), synthesis section, ground-truth score, and metadata bar. Public API: `render_round_panel()`, `render_synthesis_section()`, `render_score_section()`, `render_metadata_bar()`, `total_tokens()`, `format_cost()`, `compute_diff()`, `format_timing_web()`. Used by the debate page (progressive rendering) and future dashboard. |
+| `components/status_bar.py` | `web/components/status_bar.py` | Implemented | Debate progress indicator. Pure-Python formatters (`format_status_text()`, `format_completion_text()`) and `render_status_bar()` which creates a NiceGUI row with icon + label and returns updatable element references. States: Ready → Initial round → Reflection N of M → Synthesizing → Complete/Aborted/Error. |
+| `pages/debate.py` | `web/pages/debate.py` | Implemented | Side-by-side debate view with progressive round rendering. Left panel: query form (textarea, panel checkboxes, synthesizer picker, round count, ground truth). Right panel: status bar and scrollable transcript that updates live as each round completes via `on_round_complete` callback. Abort button cancels running debates and saves partial transcripts. Fade-in animation on new rounds. Ctrl+Enter keyboard shortcut. |
 | `pages/dashboard.py` | `web/pages/dashboard.py` | Placeholder | `render()` outputs a stub for the research dashboard (transcript browser and visualizations). Full implementation deferred to Brief 4. |
 
 ### Desktop Wrapper (Tauri 2)
@@ -776,8 +778,9 @@ completes (initial, each reflection, synthesis) with the completed `DebateRound`
 Exceptions in the callback are caught and logged via `logger.exception()` — a
 misbehaving callback cannot abort the debate. Implemented in `_fire_round_hook()`.
 
-Consumers: Web UI live debate view, research instrumentation (degradation curve
-measurement, per-round compliance tracking), detection rule triggers.
+Consumers: Web UI live debate view (implemented — progressive round rendering in
+`pages/debate.py`), research instrumentation (degradation curve measurement,
+per-round compliance tracking), detection rule triggers.
 
 **Experiment metadata schema (implemented):**
 `ExperimentMetadata` dataclass in `models.py` with `to_dict()`/`from_dict()`.
