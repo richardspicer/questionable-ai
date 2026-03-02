@@ -105,7 +105,7 @@ def format_timing_web(resp: ModelResponse) -> str:
     return " \u00b7 ".join(parts)
 
 
-def _format_cost(transcript: DebateTranscript) -> str:
+def format_cost(transcript: DebateTranscript) -> str:
     """Format total cost from transcript stats metadata.
 
     Reads ``total_cost_usd`` from ``transcript.metadata["stats"]``.
@@ -124,7 +124,7 @@ def _format_cost(transcript: DebateTranscript) -> str:
     return f"${total_cost:.4f}"
 
 
-def _total_tokens(transcript: DebateTranscript) -> int:
+def total_tokens(transcript: DebateTranscript) -> int:
     """Sum token_count across all rounds and synthesis.
 
     Args:
@@ -228,7 +228,7 @@ def _render_diff(old_text: str, new_text: str) -> None:
     ui.html("".join(html_parts))
 
 
-def _render_round_panel(
+def render_round_panel(
     debate_round: DebateRound,
     all_rounds: list[DebateRound],
     *,
@@ -265,7 +265,7 @@ def _render_round_panel(
             )
 
 
-def _render_synthesis_section(synthesis: ModelResponse) -> None:
+def render_synthesis_section(synthesis: ModelResponse) -> None:
     """Render the synthesis response with distinct styling.
 
     Uses a thicker border and darker background to visually separate
@@ -293,7 +293,7 @@ def _render_synthesis_section(synthesis: ModelResponse) -> None:
             ui.markdown(synthesis.content).classes("mt-4")
 
 
-def _render_metadata_bar(transcript: DebateTranscript) -> None:
+def render_metadata_bar(transcript: DebateTranscript) -> None:
     """Render transcript metadata as a compact info bar.
 
     Displays transcript ID, panel models, round count, total tokens,
@@ -312,11 +312,11 @@ def _render_metadata_bar(transcript: DebateTranscript) -> None:
 
         ui.label(f"Rounds: {transcript.max_rounds}")
 
-        total = _total_tokens(transcript)
+        total = total_tokens(transcript)
         if total > 0:
             ui.label(f"Tokens: {total:,}")
 
-        cost = _format_cost(transcript)
+        cost = format_cost(transcript)
         if cost:
             ui.label(f"Cost: {cost}")
 
@@ -333,7 +333,7 @@ def _render_metadata_bar(transcript: DebateTranscript) -> None:
                 ui.label(f"Experiment: {exp_id} ({source})")
 
 
-def _render_score_section(transcript: DebateTranscript) -> None:
+def render_score_section(transcript: DebateTranscript) -> None:
     """Render ground-truth score if available.
 
     Reads scoring data from ``transcript.synthesis.analysis["ground_truth_score"]``
@@ -390,7 +390,7 @@ def render_transcript(
     # Rounds — last one defaults to open.
     for i, debate_round in enumerate(transcript.rounds):
         is_last = i == len(transcript.rounds) - 1
-        _render_round_panel(
+        render_round_panel(
             debate_round,
             transcript.rounds,
             show_diff=show_diff,
@@ -400,11 +400,11 @@ def render_transcript(
     # Synthesis.
     if transcript.synthesis:
         ui.separator().classes("my-4")
-        _render_synthesis_section(transcript.synthesis)
+        render_synthesis_section(transcript.synthesis)
 
     # Score.
-    _render_score_section(transcript)
+    render_score_section(transcript)
 
     # Metadata.
     ui.separator().classes("my-4")
-    _render_metadata_bar(transcript)
+    render_metadata_bar(transcript)

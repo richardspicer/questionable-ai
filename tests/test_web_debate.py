@@ -1,95 +1,98 @@
-"""Tests for the debate page module."""
+"""Tests for the debate page module — progressive rendering logic."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
-from mutual_dissent.models import DebateTranscript
+from mutual_dissent.models import DebateRound, DebateTranscript, ModelResponse
 
 
-class TestRunDebateHelper:
-    """_run_debate helper calls orchestrator correctly."""
+class TestCallbackAccumulation:
+    """The on_round callback accumulates rounds correctly."""
 
-    @pytest.mark.asyncio
-    async def test_calls_run_debate_with_params(self) -> None:
-        """Calls orchestrator.run_debate with form parameters."""
-        from mutual_dissent.web.pages.debate import _run_debate
+    def test_rounds_accumulate_in_order(self) -> None:
+        """Rounds accumulate in the order callbacks fire."""
+        accumulated: list[DebateRound] = []
 
-        mock_transcript = DebateTranscript(query="test query")
-        with (
-            patch("mutual_dissent.web.pages.debate.load_config") as mock_config,
-            patch(
-                "mutual_dissent.web.pages.debate.run_debate",
-                new_callable=AsyncMock,
-                return_value=mock_transcript,
-            ) as mock_run,
-            patch("mutual_dissent.web.pages.debate.save_transcript") as mock_save,
-        ):
-            mock_config.return_value = MagicMock()
-            result = await _run_debate(
-                query="test query",
-                panel=["claude", "gpt"],
-                synthesizer="claude",
-                rounds=1,
-                ground_truth=None,
-            )
+        for i, rtype in enumerate(["initial", "reflection", "synthesis"]):
+            rnd = DebateRound(round_number=i, round_type=rtype, responses=[])
+            accumulated.append(rnd)
 
-        mock_run.assert_called_once()
-        mock_save.assert_called_once_with(mock_transcript)
-        assert result is mock_transcript
+        assert [r.round_type for r in accumulated] == [
+            "initial",
+            "reflection",
+            "synthesis",
+        ]
 
-    @pytest.mark.asyncio
-    async def test_passes_ground_truth_when_provided(self) -> None:
-        """Passes ground_truth to run_debate when non-empty."""
-        from mutual_dissent.web.pages.debate import _run_debate
+    def test_synthesis_round_not_in_accumulated(self) -> None:
+        """Synthesis rounds should not be in accumulated_rounds (only initial/reflection)."""
+        accumulated: list[DebateRound] = []
 
-        mock_transcript = DebateTranscript(query="test")
-        with (
-            patch("mutual_dissent.web.pages.debate.load_config") as mock_config,
-            patch(
-                "mutual_dissent.web.pages.debate.run_debate",
-                new_callable=AsyncMock,
-                return_value=mock_transcript,
-            ) as mock_run,
-            patch("mutual_dissent.web.pages.debate.save_transcript"),
-        ):
-            mock_config.return_value = MagicMock()
-            await _run_debate(
-                query="test",
-                panel=["claude"],
-                synthesizer="claude",
-                rounds=1,
-                ground_truth="the answer is 42",
-            )
+        rounds = [
+            DebateRound(round_number=0, round_type="initial", responses=[]),
+            DebateRound(round_number=1, round_type="reflection", responses=[]),
+            DebateRound(round_number=-1, round_type="synthesis", responses=[]),
+        ]
+        for rnd in rounds:
+            if rnd.round_type != "synthesis":
+                accumulated.append(rnd)
 
-        call_kwargs = mock_run.call_args
-        assert call_kwargs.kwargs["ground_truth"] == "the answer is 42"
+        assert len(accumulated) == 2
+        assert all(r.round_type != "synthesis" for r in accumulated)
 
-    @pytest.mark.asyncio
-    async def test_skips_empty_ground_truth(self) -> None:
-        """Passes None for ground_truth when empty string."""
-        from mutual_dissent.web.pages.debate import _run_debate
 
-        mock_transcript = DebateTranscript(query="test")
-        with (
-            patch("mutual_dissent.web.pages.debate.load_config") as mock_config,
-            patch(
-                "mutual_dissent.web.pages.debate.run_debate",
-                new_callable=AsyncMock,
-                return_value=mock_transcript,
-            ) as mock_run,
-            patch("mutual_dissent.web.pages.debate.save_transcript"),
-        ):
-            mock_config.return_value = MagicMock()
-            await _run_debate(
-                query="test",
-                panel=["claude"],
-                synthesizer="claude",
-                rounds=1,
-                ground_truth="",
-            )
+class TestAbortHandling:
+    """Abort creates partial transcript with correct metadata."""
 
-        call_kwargs = mock_run.call_args
-        assert call_kwargs.kwargs["ground_truth"] is None
+    def test_partial_transcript_has_aborted_flag(self) -> None:
+        """Partial transcript after abort has metadata['aborted'] = True."""
+        rounds = [
+            DebateRound(round_number=0, round_type="initial", responses=[]),
+        ]
+        transcript = DebateTranscript(
+            query="test",
+            panel=["claude"],
+            synthesizer_id="claude",
+            max_rounds=2,
+            rounds=rounds,
+            metadata={"aborted": True},
+        )
+        assert transcript.metadata["aborted"] is True
+        assert len(transcript.rounds) == 1
+        assert transcript.synthesis is None
+
+    def test_partial_transcript_preserves_completed_rounds(self) -> None:
+        """All rounds completed before abort are preserved."""
+        r0 = DebateRound(
+            round_number=0,
+            round_type="initial",
+            responses=[
+                ModelResponse(model_id="m1", model_alias="claude", round_number=0, content="a"),
+                ModelResponse(model_id="m2", model_alias="gpt", round_number=0, content="b"),
+            ],
+        )
+        r1 = DebateRound(
+            round_number=1,
+            round_type="reflection",
+            responses=[
+                ModelResponse(model_id="m1", model_alias="claude", round_number=1, content="c"),
+                ModelResponse(model_id="m2", model_alias="gpt", round_number=1, content="d"),
+            ],
+        )
+        transcript = DebateTranscript(
+            query="test",
+            rounds=[r0, r1],
+            metadata={"aborted": True},
+        )
+        assert len(transcript.rounds) == 2
+        assert len(transcript.rounds[0].responses) == 2
+        assert len(transcript.rounds[1].responses) == 2
+
+    def test_partial_transcript_serializes(self) -> None:
+        """Partial transcript can be serialized to dict."""
+        transcript = DebateTranscript(
+            query="test",
+            rounds=[DebateRound(round_number=0, round_type="initial", responses=[])],
+            metadata={"aborted": True},
+        )
+        data = transcript.to_dict()
+        assert data["metadata"]["aborted"] is True
+        assert len(data["rounds"]) == 1

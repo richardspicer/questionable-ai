@@ -111,30 +111,30 @@ class TestFormatTimingWeb:
 
 
 class TestFormatCost:
-    """_format_cost reads cost from transcript metadata."""
+    """format_cost reads cost from transcript metadata."""
 
     def test_with_cost(self) -> None:
-        from mutual_dissent.web.components.transcript_view import _format_cost
+        from mutual_dissent.web.components.transcript_view import format_cost
 
         transcript = DebateTranscript(
             metadata={"stats": {"total_cost_usd": 0.0234}},
         )
-        result = _format_cost(transcript)
+        result = format_cost(transcript)
         assert result == "$0.0234"
 
     def test_without_cost(self) -> None:
-        from mutual_dissent.web.components.transcript_view import _format_cost
+        from mutual_dissent.web.components.transcript_view import format_cost
 
         transcript = DebateTranscript()
-        result = _format_cost(transcript)
+        result = format_cost(transcript)
         assert result == ""
 
 
 class TestTotalTokens:
-    """_total_tokens sums tokens across rounds and synthesis."""
+    """total_tokens sums tokens across rounds and synthesis."""
 
     def test_sums_round_and_synthesis_tokens(self) -> None:
-        from mutual_dissent.web.components.transcript_view import _total_tokens
+        from mutual_dissent.web.components.transcript_view import total_tokens
 
         resp1 = ModelResponse(
             model_id="m1",
@@ -161,10 +161,10 @@ class TestTotalTokens:
             rounds=[DebateRound(round_number=0, round_type="initial", responses=[resp1, resp2])],
             synthesis=synth,
         )
-        assert _total_tokens(transcript) == 350
+        assert total_tokens(transcript) == 350
 
     def test_returns_zero_when_no_token_data(self) -> None:
-        from mutual_dissent.web.components.transcript_view import _total_tokens
+        from mutual_dissent.web.components.transcript_view import total_tokens
 
         transcript = DebateTranscript()
-        assert _total_tokens(transcript) == 0
+        assert total_tokens(transcript) == 0
