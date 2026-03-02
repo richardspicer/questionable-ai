@@ -20,6 +20,8 @@ from mutual_dissent.config import (
     load_config,
     write_config,
 )
+from mutual_dissent.models import ModelResponse
+from mutual_dissent.types import RoutingDecision
 
 # Canonical list of providers shown in the UI.
 _PROVIDERS = ["openrouter", "anthropic", "openai", "google", "xai", "groq"]
@@ -442,15 +444,14 @@ async def _handle_test_providers(
             decision = result["decision"]
             response = result["response"]
 
-            vendor_str = decision.vendor.value  # type: ignore[union-attr]
-            route_str = (
-                "openrouter"
-                if decision.via_openrouter  # type: ignore[union-attr]
-                else "direct"
-            )
-            model_id = response.model_id  # type: ignore[union-attr]
-            latency_ms = response.latency_ms  # type: ignore[union-attr]
-            error = response.error  # type: ignore[union-attr]
+            assert isinstance(decision, RoutingDecision)
+            assert isinstance(response, ModelResponse)
+
+            vendor_str = decision.vendor.value
+            route_str = "openrouter" if decision.via_openrouter else "direct"
+            model_id = response.model_id
+            latency_ms = response.latency_ms
+            error = response.error
 
             if error:
                 latency_str = "\u2014"
@@ -493,8 +494,6 @@ def render() -> None:
 
         ui.separator()
 
-        test_results = ui.column().classes("w-full mt-4")
-
         with ui.row().classes("w-full justify-between items-center"):
             ui.button(
                 "Save",
@@ -506,3 +505,7 @@ def render() -> None:
                 icon="science",
                 on_click=lambda: _handle_test_providers(state, test_results),
             ).props("color=secondary outlined")
+
+        # Results container placed after buttons — the lambda captures the
+        # variable name, and by the time the user clicks, it's assigned.
+        test_results: ui.column = ui.column().classes("w-full mt-4")
