@@ -228,7 +228,7 @@ def _render_diff(old_text: str, new_text: str) -> None:
     ui.html("".join(html_parts))
 
 
-def _render_round_panel(
+def render_round_panel(
     debate_round: DebateRound,
     all_rounds: list[DebateRound],
     *,
@@ -265,7 +265,7 @@ def _render_round_panel(
             )
 
 
-def _render_synthesis_section(synthesis: ModelResponse) -> None:
+def render_synthesis_section(synthesis: ModelResponse) -> None:
     """Render the synthesis response with distinct styling.
 
     Uses a thicker border and darker background to visually separate
@@ -390,7 +390,7 @@ def render_transcript(
     # Rounds — last one defaults to open.
     for i, debate_round in enumerate(transcript.rounds):
         is_last = i == len(transcript.rounds) - 1
-        _render_round_panel(
+        render_round_panel(
             debate_round,
             transcript.rounds,
             show_diff=show_diff,
@@ -400,7 +400,7 @@ def render_transcript(
     # Synthesis.
     if transcript.synthesis:
         ui.separator().classes("my-4")
-        _render_synthesis_section(transcript.synthesis)
+        render_synthesis_section(transcript.synthesis)
 
     # Score.
     _render_score_section(transcript)
