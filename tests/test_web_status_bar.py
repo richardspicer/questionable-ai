@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mutual_dissent.web.components.status_bar import format_status_text
+from mutual_dissent.web.components.status_bar import format_completion_text, format_status_text
 
 
 class TestFormatStatusText:
@@ -34,8 +34,6 @@ class TestFormatCompletionText:
 
     def test_with_tokens_and_cost(self) -> None:
         """Shows tokens and cost when available."""
-        from mutual_dissent.web.components.status_bar import format_completion_text
-
         result = format_completion_text(total_tokens=1500, cost_usd=0.0234)
         assert "1,500 tokens" in result
         assert "$0.0234" in result
@@ -43,22 +41,16 @@ class TestFormatCompletionText:
 
     def test_with_tokens_only(self) -> None:
         """Shows tokens without cost when cost is None."""
-        from mutual_dissent.web.components.status_bar import format_completion_text
-
         result = format_completion_text(total_tokens=500, cost_usd=None)
         assert "500 tokens" in result
         assert "$" not in result
 
     def test_with_no_data(self) -> None:
         """Shows just 'Complete' when no stats available."""
-        from mutual_dissent.web.components.status_bar import format_completion_text
-
         result = format_completion_text(total_tokens=0, cost_usd=None)
         assert result == "Complete"
 
     def test_aborted(self) -> None:
         """Shows 'Aborted' text."""
-        from mutual_dissent.web.components.status_bar import format_completion_text
-
         result = format_completion_text(total_tokens=300, cost_usd=None, aborted=True)
         assert "Aborted" in result

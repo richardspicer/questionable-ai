@@ -59,7 +59,7 @@ def format_completion_text(
     return f"{prefix} — {', '.join(parts)}"
 
 
-def render_status_bar() -> tuple:
+def render_status_bar() -> tuple[object, object, object]:
     """Create a status bar widget and return its updatable elements.
 
     Returns:
