@@ -66,3 +66,113 @@ def cumulative_cost_series(summaries: list[dict[str, Any]]) -> dict[str, Any]:
         cumulative.append(round(running, 6))
 
     return {"dates": dates, "cumulative": cumulative}
+
+
+# ---------------------------------------------------------------------------
+# NiceGUI rendering
+# ---------------------------------------------------------------------------
+
+# ECharts hex colors matching MODEL_CSS_COLORS.
+_ECHART_COLORS: dict[str, str] = {
+    "claude": "#d946ef",
+    "gpt": "#22c55e",
+    "gemini": "#06b6d4",
+    "grok": "#eab308",
+}
+_DEFAULT_COLOR = "#6b7280"
+
+
+def render_per_debate_chart(transcript: DebateTranscript) -> None:
+    """Render a bar chart of per-model cost for a single transcript.
+
+    Args:
+        transcript: Debate transcript with cost metadata.
+    """
+    from nicegui import ui
+
+    data = per_debate_cost(transcript)
+
+    if not data["models"]:
+        ui.label("Cost data unavailable.").classes("text-gray-500 italic")
+        return
+
+    colors = [_ECHART_COLORS.get(m, _DEFAULT_COLOR) for m in data["models"]]
+
+    ui.echart(
+        {
+            "tooltip": {
+                "trigger": "axis",
+                ":formatter": r"params => params[0].name + ': $' + params[0].value.toFixed(4)",
+            },
+            "xAxis": {
+                "type": "category",
+                "data": data["models"],
+                "axisLabel": {"color": "#9ca3af"},
+            },
+            "yAxis": {
+                "type": "value",
+                "name": "Cost (USD)",
+                "axisLabel": {
+                    "color": "#9ca3af",
+                    ":formatter": r"value => '$' + value.toFixed(4)",
+                },
+                "nameTextStyle": {"color": "#9ca3af"},
+            },
+            "series": [
+                {
+                    "type": "bar",
+                    "data": [
+                        {"value": c, "itemStyle": {"color": col}}
+                        for c, col in zip(data["costs"], colors, strict=True)
+                    ],
+                }
+            ],
+        }
+    ).classes("w-full h-64")
+
+
+def render_cumulative_chart(summaries: list[dict[str, Any]]) -> None:
+    """Render a line chart of cumulative cost over time.
+
+    Args:
+        summaries: Transcript summary dicts with ``date`` and ``cost`` keys.
+    """
+    from nicegui import ui
+
+    data = cumulative_cost_series(summaries)
+
+    if not data["dates"]:
+        ui.label("No cost data available for cumulative chart.").classes("text-gray-500 italic")
+        return
+
+    ui.echart(
+        {
+            "tooltip": {
+                "trigger": "axis",
+                ":formatter": r"params => params[0].axisValue + ': $' + params[0].value.toFixed(4)",
+            },
+            "xAxis": {
+                "type": "category",
+                "data": data["dates"],
+                "axisLabel": {"color": "#9ca3af", "rotate": 45},
+            },
+            "yAxis": {
+                "type": "value",
+                "name": "Cumulative USD",
+                "axisLabel": {
+                    "color": "#9ca3af",
+                    ":formatter": r"value => '$' + value.toFixed(2)",
+                },
+                "nameTextStyle": {"color": "#9ca3af"},
+            },
+            "series": [
+                {
+                    "type": "line",
+                    "data": data["cumulative"],
+                    "smooth": True,
+                    "areaStyle": {"opacity": 0.15},
+                    "itemStyle": {"color": "#3b82f6"},
+                }
+            ],
+        }
+    ).classes("w-full h-64")

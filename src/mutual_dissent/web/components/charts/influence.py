@@ -127,3 +127,82 @@ def compute_influence(transcripts: list[DebateTranscript]) -> dict[str, Any]:
                 matrix[i][j] = round(influence_sums[i][j] / influence_counts[i][j], 4)
 
     return {"models": models, "matrix": matrix}
+
+
+# ---------------------------------------------------------------------------
+# NiceGUI rendering
+# ---------------------------------------------------------------------------
+
+
+def render_influence_heatmap(transcripts: list[DebateTranscript]) -> None:
+    """Render an NxN influence heatmap using ECharts.
+
+    Args:
+        transcripts: List of debate transcripts to analyze.
+    """
+    from nicegui import ui
+
+    data = compute_influence(transcripts)
+
+    if not data["models"]:
+        ui.label("No data for influence heatmap.").classes("text-gray-500 italic")
+        return
+
+    models = data["models"]
+    matrix = data["matrix"]
+
+    # ECharts heatmap expects [x, y, value] triples.
+    heatmap_data = []
+    for i, row in enumerate(matrix):
+        for j, val in enumerate(row):
+            heatmap_data.append([j, i, val])
+
+    ui.echart(
+        {
+            "tooltip": {
+                "position": "top",
+            },
+            "grid": {"top": 30, "bottom": 80, "left": 80, "right": 30},
+            "xAxis": {
+                "type": "category",
+                "data": models,
+                "name": "Target (shifted)",
+                "nameLocation": "center",
+                "nameGap": 40,
+                "axisLabel": {"color": "#9ca3af"},
+                "nameTextStyle": {"color": "#9ca3af"},
+                "splitArea": {"show": True},
+            },
+            "yAxis": {
+                "type": "category",
+                "data": models,
+                "name": "Source (influencer)",
+                "nameLocation": "center",
+                "nameGap": 60,
+                "axisLabel": {"color": "#9ca3af"},
+                "nameTextStyle": {"color": "#9ca3af"},
+                "splitArea": {"show": True},
+            },
+            "visualMap": {
+                "min": 0,
+                "max": 1,
+                "calculable": True,
+                "orient": "horizontal",
+                "left": "center",
+                "bottom": 0,
+                "textStyle": {"color": "#9ca3af"},
+                "inRange": {"color": ["#1e293b", "#3b82f6", "#ef4444"]},
+            },
+            "series": [
+                {
+                    "type": "heatmap",
+                    "data": heatmap_data,
+                    "label": {
+                        "show": True,
+                        ":formatter": r"params => params.value[2].toFixed(2)",
+                        "color": "#e5e7eb",
+                    },
+                }
+            ],
+        }
+    ).classes("w-full h-80")

@@ -80,3 +80,64 @@ def compute_convergence(transcript: DebateTranscript) -> dict[str, Any]:
         "rounds": transitions,
         "series": series,
     }
+
+
+# ---------------------------------------------------------------------------
+# NiceGUI rendering
+# ---------------------------------------------------------------------------
+
+# ECharts hex colors matching MODEL_CSS_COLORS from web/colors.py.
+_ECHART_COLORS: dict[str, str] = {
+    "claude": "#d946ef",  # fuchsia-500
+    "gpt": "#22c55e",  # green-500
+    "gemini": "#06b6d4",  # cyan-500
+    "grok": "#eab308",  # yellow-500
+}
+_DEFAULT_COLOR = "#6b7280"  # gray-500
+
+
+def render_convergence_chart(transcript: DebateTranscript) -> None:
+    """Render a grouped bar chart of per-model convergence across rounds.
+
+    Args:
+        transcript: Debate transcript to visualize.
+    """
+    from nicegui import ui
+
+    data = compute_convergence(transcript)
+
+    if not data["rounds"]:
+        ui.label("Not enough rounds for convergence chart.").classes("text-gray-500 italic")
+        return
+
+    series = []
+    for model in data["models"]:
+        series.append(
+            {
+                "name": model,
+                "type": "bar",
+                "data": data["series"][model],
+                "itemStyle": {"color": _ECHART_COLORS.get(model, _DEFAULT_COLOR)},
+            }
+        )
+
+    ui.echart(
+        {
+            "tooltip": {"trigger": "axis"},
+            "legend": {"data": data["models"], "textStyle": {"color": "#9ca3af"}},
+            "xAxis": {
+                "type": "category",
+                "data": data["rounds"],
+                "axisLabel": {"color": "#9ca3af"},
+            },
+            "yAxis": {
+                "type": "value",
+                "name": "Change Ratio",
+                "min": 0,
+                "max": 1,
+                "axisLabel": {"color": "#9ca3af"},
+                "nameTextStyle": {"color": "#9ca3af"},
+            },
+            "series": series,
+        }
+    ).classes("w-full h-64")
