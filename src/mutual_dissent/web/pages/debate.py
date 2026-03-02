@@ -26,12 +26,11 @@ from mutual_dissent.web.components.status_bar import (
     render_status_bar,
 )
 from mutual_dissent.web.components.transcript_view import (
-    _format_cost,
-    _render_metadata_bar,
-    _render_score_section,
-    _total_tokens,
+    render_metadata_bar,
     render_round_panel,
+    render_score_section,
     render_synthesis_section,
+    total_tokens,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,15 +200,14 @@ def render() -> None:
     Right panel: scrollable transcript with progressive round rendering,
     status bar, and abort button.
     """
-    ui.add_css(
-        ".animate-fade-in {\n"
-        "    animation: fadeIn 0.3s ease-in;\n"
-        "}\n"
-        "@keyframes fadeIn {\n"
-        "    from { opacity: 0; }\n"
-        "    to { opacity: 1; }\n"
-        "}"
-    )
+    ui.add_css("""\
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}""")
 
     config = load_config()
     state = _DebateState()
@@ -329,16 +327,16 @@ def render() -> None:
 
             with status.response_container:
                 with ui.column().classes("animate-fade-in"):
-                    _render_score_section(transcript)
+                    render_score_section(transcript)
                 ui.separator().classes("my-4 animate-fade-in")
                 with ui.column().classes("animate-fade-in"):
-                    _render_metadata_bar(transcript)
+                    render_metadata_bar(transcript)
 
             elapsed = time.monotonic() - start_time
-            total_tokens = _total_tokens(transcript)
-            cost_str = _format_cost(transcript)
-            cost_usd = float(cost_str.lstrip("$")) if cost_str else None
-            completion_text = format_completion_text(total_tokens=total_tokens, cost_usd=cost_usd)
+            token_total = total_tokens(transcript)
+            stats = transcript.metadata.get("stats", {})
+            cost_usd = stats.get("total_cost_usd")
+            completion_text = format_completion_text(total_tokens=token_total, cost_usd=cost_usd)
             _update_status(
                 status.status_icon,
                 status.status_label,
