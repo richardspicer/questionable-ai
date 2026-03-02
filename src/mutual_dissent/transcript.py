@@ -78,21 +78,28 @@ def list_transcripts(limit: int = 20) -> list[dict[str, Any]]:
     """List saved transcripts, most recent first.
 
     Args:
-        limit: Maximum number of transcripts to return.
+        limit: Maximum number of transcripts to return. Use 0 for no limit.
 
     Returns:
         List of dicts with 'id', 'short_id', 'date', 'query', 'file',
-        'panel', 'synthesizer', and 'tokens' keys.
+        'panel', 'synthesizer', 'tokens', 'cost', 'rounds', and
+        'experiment_id' keys.
     """
     ensure_dirs()
     files = sorted(TRANSCRIPT_DIR.glob("*.json"), reverse=True)
 
+    if limit > 0:
+        files = files[:limit]
+
     results: list[dict[str, Any]] = []
-    for filepath in files[:limit]:
+    for filepath in files:
         try:
             with open(filepath, encoding="utf-8") as f:
                 data = json.load(f)
             panel_list: list[str] = data.get("panel", [])
+            metadata = data.get("metadata", {})
+            stats = metadata.get("stats", {})
+            experiment = metadata.get("experiment")
             results.append(
                 {
                     "id": data.get("transcript_id", ""),
@@ -103,6 +110,11 @@ def list_transcripts(limit: int = 20) -> list[dict[str, Any]]:
                     "panel": ", ".join(panel_list),
                     "synthesizer": data.get("synthesizer_id", ""),
                     "tokens": _count_tokens_from_dict(data),
+                    "cost": stats.get("total_cost_usd"),
+                    "rounds": len(data.get("rounds", [])),
+                    "experiment_id": experiment.get("experiment_id")
+                    if isinstance(experiment, dict)
+                    else None,
                 }
             )
         except (json.JSONDecodeError, KeyError):

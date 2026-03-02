@@ -443,6 +443,92 @@ class TestListTranscripts:
 
         assert len(results) == 3
 
+    def test_returns_cost_field(self, tmp_path: Path, _redirect_transcript_dir: Path) -> None:
+        """Cost field reads total_cost_usd from transcript stats metadata."""
+        data: dict[str, Any] = {
+            "transcript_id": "aaaa1111-2222-3333-4444-555566667777",
+            "query": "Test question",
+            "panel": ["claude", "gpt"],
+            "synthesizer_id": "gpt",
+            "max_rounds": 1,
+            "rounds": [],
+            "synthesis": None,
+            "created_at": "2026-02-28T12:00:00+00:00",
+            "metadata": {"stats": {"total_cost_usd": 0.0234}},
+        }
+        filepath = tmp_path / "2026-02-28_aaaa1111.json"
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+
+        results = list_transcripts()
+
+        assert len(results) == 1
+        assert results[0]["cost"] == 0.0234
+
+    def test_returns_none_cost_when_missing(
+        self, tmp_path: Path, _redirect_transcript_dir: Path
+    ) -> None:
+        """Cost field is None when no stats metadata present."""
+        self._write_minimal_transcript(tmp_path, "2026-02-28_aaaa1111.json")
+
+        results = list_transcripts()
+
+        assert results[0]["cost"] is None
+
+    def test_returns_rounds_field(self, tmp_path: Path, _redirect_transcript_dir: Path) -> None:
+        """Rounds field counts the number of rounds in the transcript."""
+        rounds = [
+            {"round_number": 0, "round_type": "initial", "responses": []},
+            {"round_number": 1, "round_type": "reflection", "responses": []},
+        ]
+        self._write_minimal_transcript(tmp_path, "2026-02-28_aaaa1111.json", rounds=rounds)
+
+        results = list_transcripts()
+
+        assert results[0]["rounds"] == 2
+
+    def test_returns_experiment_id_field(
+        self, tmp_path: Path, _redirect_transcript_dir: Path
+    ) -> None:
+        """Experiment ID extracted from metadata when present."""
+        data: dict[str, Any] = {
+            "transcript_id": "aaaa1111-2222-3333-4444-555566667777",
+            "query": "Test question",
+            "panel": ["claude"],
+            "synthesizer_id": "claude",
+            "max_rounds": 1,
+            "rounds": [],
+            "synthesis": None,
+            "created_at": "2026-02-28T12:00:00+00:00",
+            "metadata": {
+                "experiment": {"experiment_id": "EXP-001", "source_tool": "manual"},
+            },
+        }
+        filepath = tmp_path / "2026-02-28_aaaa1111.json"
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+
+        results = list_transcripts()
+
+        assert results[0]["experiment_id"] == "EXP-001"
+
+    def test_returns_none_experiment_when_missing(
+        self, tmp_path: Path, _redirect_transcript_dir: Path
+    ) -> None:
+        """Experiment ID is None when no experiment metadata."""
+        self._write_minimal_transcript(tmp_path, "2026-02-28_aaaa1111.json")
+
+        results = list_transcripts()
+
+        assert results[0]["experiment_id"] is None
+
+    def test_limit_zero_returns_all(self, tmp_path: Path, _redirect_transcript_dir: Path) -> None:
+        """Limit=0 returns all transcripts (no cap)."""
+        for i in range(5):
+            self._write_minimal_transcript(tmp_path, f"2026-02-2{i}_aaaa111{i}.json")
+
+        results = list_transcripts(limit=0)
+
+        assert len(results) == 5
+
     def test_empty_directory(self, tmp_path: Path, _redirect_transcript_dir: Path) -> None:
         """Empty transcript directory returns an empty list."""
         results = list_transcripts()
