@@ -24,6 +24,7 @@ dependencies = [
     "click>=8.1",
     "rich>=13.0",
     "nicegui>=3.8.0",
+    "tomlkit>=0.13",
 ]
 
 [project.urls]
