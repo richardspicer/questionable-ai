@@ -212,3 +212,6 @@ __marimo__/
 # Claude Code
 .claude/
 CLAUDE.md
+
+# NiceGUI
+.nicegui/
