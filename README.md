@@ -95,4 +95,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ## Author
 
-[Richard Spicer](https://richardspicer.io) — Security research at [MLSecOps Lab](https://mlsecopslab.io)
+[Richard Spicer](https://richardspicer.io) — Security research at [mlsecopslab.io](https://mlsecopslab.io)
