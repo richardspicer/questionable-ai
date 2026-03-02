@@ -9,10 +9,11 @@ class TestComputeDiff:
     """compute_diff returns structured diff lines."""
 
     def test_identical_text_returns_no_changes(self) -> None:
+        """Identical old and new text produces empty diff."""
         from mutual_dissent.web.components.transcript_view import compute_diff
 
         lines = compute_diff("Hello world", "Hello world")
-        assert all(line[0] == " " for line in lines)
+        assert lines == []
 
     def test_addition_marked(self) -> None:
         from mutual_dissent.web.components.transcript_view import compute_diff

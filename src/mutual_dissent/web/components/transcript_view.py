@@ -14,14 +14,9 @@ Typical usage::
 from __future__ import annotations
 
 import difflib
-from typing import TYPE_CHECKING
 
 from mutual_dissent.models import DebateRound, DebateTranscript, ExperimentMetadata, ModelResponse
 from mutual_dissent.web.colors import get_css_colors
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Pure-Python helpers (testable without NiceGUI)
