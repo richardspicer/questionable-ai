@@ -361,6 +361,8 @@ def write_config(
     doc.add("routing", routing_table)
 
     # --- Model aliases (Phase 1.5 nested format) ---
+    # Only _model_aliases_v2 is serialized; the flat model_aliases dict
+    # is derived from it during load and is not a source of truth.
     aliases_table = tomlkit.table()
     for alias, ids in sorted(config._model_aliases_v2.items()):
         alias_sub = tomlkit.table()
@@ -378,7 +380,7 @@ def write_config(
 
     # Write: parent dirs, then file.
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(tomlkit.dumps(doc))
+    target.write_text(tomlkit.dumps(doc), encoding="utf-8")
 
     # Restore permissions if file existed before.
     if existing_mode is not None:
